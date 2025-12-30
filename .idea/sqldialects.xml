@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="SqlDialectMappings">
+    <file url="file://$PROJECT_DIR$/.idea/queries/Query_1.sql" dialect="Oracle" />
+    <file url="file://$PROJECT_DIR$/.idea/queries/Query_2.sql" dialect="Oracle" />
+    <file url="file://$PROJECT_DIR$/KITS_BACKEND/Scripts BD/01 Usuario.sql" dialect="Oracle" />
+    <file url="file://$PROJECT_DIR$/KITS_BACKEND/Scripts BD/02 KitsdeLuzBD.sql" dialect="Oracle" />
+    <file url="file://$PROJECT_DIR$/KITS_BACKEND/Scripts BD/03 Tipos.sql" dialect="Oracle" />
+    <file url="file://$PROJECT_DIR$/KITS_BACKEND/Scripts BD/04 Lógica de ROLES y USUARIOS.sql" dialect="Oracle" />
+    <file url="file://$PROJECT_DIR$/KITS_BACKEND/Scripts BD/05 Lógica de CLIENTES y PRODUCTOS.sql" dialect="Oracle" />
+    <file url="file://$PROJECT_DIR$/KITS_BACKEND/Scripts BD/06 Lógica de PEDIDOS.sql" dialect="Oracle" />
+    <file url="file://$PROJECT_DIR$/KITS_BACKEND/Scripts BD/07 PKG_ROLES.sql" dialect="Oracle" />
+    <file url="file://$PROJECT_DIR$/KITS_BACKEND/Scripts BD/08 PKG_USUARIOS.sql" dialect="Oracle" />
+    <file url="file://$PROJECT_DIR$/KITS_BACKEND/Scripts BD/09 PKG_CLIENTES.sql" dialect="Oracle" />
+    <file url="file://$PROJECT_DIR$/KITS_BACKEND/Scripts BD/10 PKG_PRODUCTOS.sql" dialect="Oracle" />
+    <file url="file://$PROJECT_DIR$/KITS_BACKEND/Scripts BD/11 PKG_PEDIDOS.sql" dialect="Oracle" />
+  </component>
+</project>

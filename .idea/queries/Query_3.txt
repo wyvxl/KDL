@@ -1,0 +1,723 @@
+create TYPE t_detalle_pedido AS OBJECT (
+    id_producto    NUMBER(10),
+    cantidad       NUMBER(5),
+    precio         NUMBER(10, 2)
+);
+/
+
+create type T_LISTA_DETALLES as table of T_DETALLE_PEDIDO
+/
+
+create table ROLES
+(
+    ID_ROL         NUMBER       default "KITS"."ISEQ$$_79887".nextval generated as identity
+		primary key,
+    NOMBRE_ROL     VARCHAR2(50) not null
+        unique,
+    DESCRIPCION    VARCHAR2(200),
+    ACTIVO         CHAR         default 'S'
+        check (activo IN ('S', 'N')),
+    FECHA_CREACION TIMESTAMP(6) default CURRENT_TIMESTAMP
+)
+/
+
+create table USUARIOS
+(
+    ID_USUARIO      NUMBER       default "KITS"."ISEQ$$_79891".nextval generated as identity
+		primary key,
+    ID_ROL          NUMBER        not null
+        constraint FK_USUARIOS_ROLES
+            references ROLES,
+    NOMBRE_USUARIO  VARCHAR2(50)  not null
+        unique,
+    CONTRASENA      VARCHAR2(255) not null,
+    EMAIL           VARCHAR2(100) not null
+        unique,
+    NOMBRE_COMPLETO VARCHAR2(150),
+    ACTIVO          CHAR         default 'S'
+        check (activo IN ('S', 'N')),
+    FECHA_CREACION  TIMESTAMP(6) default CURRENT_TIMESTAMP,
+    ULTIMO_ACCESO   TIMESTAMP(6)
+)
+/
+
+create table CLIENTES
+(
+    ID_CLIENTE     NUMBER       default "KITS"."ISEQ$$_79896".nextval generated as identity
+		primary key,
+    NOMBRE         VARCHAR2(150) not null,
+    TELEFONO       VARCHAR2(20)  not null,
+    DIRECCION      VARCHAR2(300),
+    EMAIL          VARCHAR2(100),
+    NOTAS          VARCHAR2(500),
+    ACTIVO         CHAR         default 'S'
+        check (activo IN ('S', 'N')),
+    FECHA_REGISTRO TIMESTAMP(6) default CURRENT_TIMESTAMP
+)
+/
+
+create index IDX_CLIENTES_TELEFONO
+    on CLIENTES (TELEFONO)
+/
+
+create table PRODUCTOS
+(
+    ID_PRODUCTO    NUMBER       default "KITS"."ISEQ$$_79899".nextval generated as identity
+		primary key,
+    NOMBRE         VARCHAR2(100) not null,
+    DESCRIPCION    VARCHAR2(300),
+    PRECIO         NUMBER(10, 2) not null
+        check (precio >= 0),
+    STOCK_ACTUAL   NUMBER       default 0
+        check (stock_actual >= 0),
+    STOCK_MINIMO   NUMBER       default 5,
+    UNIDAD_MEDIDA  VARCHAR2(20) default 'unidad',
+    ACTIVO         CHAR         default 'S'
+        check (activo IN ('S', 'N')),
+    FECHA_CREACION TIMESTAMP(6) default CURRENT_TIMESTAMP
+)
+/
+
+create table PEDIDOS
+(
+    ID_PEDIDO              NUMBER        default "KITS"."ISEQ$$_79902".nextval generated as identity
+		primary key,
+    ID_CLIENTE             NUMBER not null
+        constraint FK_PEDIDOS_CLIENTES
+            references CLIENTES,
+    ID_USUARIO_RESPONSABLE NUMBER not null
+        constraint FK_PEDIDOS_USUARIOS
+            references USUARIOS,
+    FECHA_PEDIDO           TIMESTAMP(6)  default CURRENT_TIMESTAMP,
+    FECHA_PROGRAMADA       DATE   not null,
+    ESTADO                 VARCHAR2(20)  default 'PENDIENTE'
+        check (estado IN ('PENDIENTE', 'EN_PROCESO', 'LISTO', 'ENTREGADO', 'CANCELADO')),
+    PAGADO                 CHAR          default 'N'
+        check (pagado IN ('S', 'N')),
+    TOTAL                  NUMBER(10, 2) default 0,
+    FECHA_ENTREGA          TIMESTAMP(6)
+)
+/
+
+create index IDX_PEDIDOS_ESTADO
+    on PEDIDOS (ESTADO)
+/
+
+create index IDX_PEDIDOS_FECHA_PROGRAMADA
+    on PEDIDOS (FECHA_PROGRAMADA)
+/
+
+create index IDX_PEDIDOS_CLIENTE
+    on PEDIDOS (ID_CLIENTE)
+/
+
+create table PEDIDO_PRODUCTO
+(
+    ID_PEDIDO       NUMBER        not null
+        constraint FK_PEDPROD_PEDIDO
+            references PEDIDOS
+                on delete cascade,
+    ID_PRODUCTO     NUMBER        not null
+        constraint FK_PEDPROD_PRODUCTO
+            references PRODUCTOS,
+    CANTIDAD        NUMBER        not null
+        check (cantidad > 0),
+    PRECIO_UNITARIO NUMBER(10, 2) not null
+        check (precio_unitario >= 0),
+    SUBTOTAL        NUMBER(10, 2) as ("CANTIDAD" * "PRECIO_UNITARIO"),
+    primary key (ID_PEDIDO, ID_PRODUCTO)
+)
+/
+
+create PACKAGE PKG_ROLES AS
+    PROCEDURE sp_op_listar_roles(
+        p_res OUT SYS_REFCURSOR
+    );
+
+    -- Crear nuevo rol
+    PROCEDURE sp_op_crear_rol(
+        p_nombre IN ROLES.NOMBRE_ROL%TYPE,
+        p_desc   IN ROLES.DESCRIPCION%TYPE,
+        p_res    OUT NUMBER
+    );
+END PKG_ROLES;
+/
+
+create PACKAGE PKG_USUARIOS AS
+    -- GESTIONAR
+    PROCEDURE sp_op_gestionar_usuario(
+        p_id   IN USUARIOS.ID_USUARIO%TYPE,
+        p_rol  IN USUARIOS.ID_ROL%TYPE,
+        p_user IN USUARIOS.NOMBRE_USUARIO%TYPE,
+        p_pass IN USUARIOS.CONTRASENA%TYPE,
+        p_mail IN USUARIOS.EMAIL%TYPE,
+        p_nom  IN USUARIOS.NOMBRE_COMPLETO%TYPE,
+        p_res  OUT NUMBER
+    );
+
+    -- AUTENTICAR
+    PROCEDURE sp_op_autenticar(
+        p_user IN VARCHAR2,
+        p_pass IN VARCHAR2,
+        p_res  OUT SYS_REFCURSOR
+    );
+
+    -- BUSCAR POR NOMBRE DE USUARIO
+    PROCEDURE sp_op_buscar_usuario(
+        p_user IN VARCHAR2,
+        p_res  OUT SYS_REFCURSOR
+    );
+
+    -- CONSULTAR POR ID
+    PROCEDURE sp_op_consultar_usuario_id(
+        p_id  IN NUMBER,
+        p_res OUT SYS_REFCURSOR
+    );
+
+    -- LISTAR
+    PROCEDURE sp_op_listar_usuarios(
+        p_res OUT SYS_REFCURSOR
+    );
+
+    -- CAMBIAR CONTRASEÑA
+    PROCEDURE sp_op_cambiar_contrasena(
+        p_user IN VARCHAR2,
+        p_new_pass IN VARCHAR2
+    );
+
+    -- DESACTIVAR
+    PROCEDURE sp_op_eliminar_usuario(
+        p_id  IN NUMBER,
+        p_res OUT NUMBER
+    );
+
+    -- ACTIVAR
+    PROCEDURE sp_op_activar_usuario(
+        p_id  IN NUMBER,
+        p_res OUT NUMBER
+    );
+
+END PKG_USUARIOS;
+/
+
+create PACKAGE PKG_CLIENTES AS
+    PROCEDURE sp_op_listar_clientes(
+        p_res OUT SYS_REFCURSOR
+    );
+
+    PROCEDURE sp_op_consultar_cliente(
+        p_id  IN NUMBER,
+        p_res OUT SYS_REFCURSOR
+    );
+
+    PROCEDURE sp_op_gestionar_cliente(
+        p_id    IN NUMBER,
+        p_nom   IN VARCHAR2,
+        p_tel   IN VARCHAR2,
+        p_dir   IN VARCHAR2,
+        p_mail  IN VARCHAR2,
+        p_notas IN VARCHAR2,
+        p_res   OUT NUMBER
+    );
+END PKG_CLIENTES;
+/
+
+create PACKAGE PKG_PRODUCTOS AS
+    PROCEDURE sp_op_listar_productos(
+        p_res OUT SYS_REFCURSOR
+    );
+
+    PROCEDURE sp_op_consultar_producto(
+        p_id IN NUMBER,
+        p_res OUT SYS_REFCURSOR
+    );
+
+    PROCEDURE sp_op_gestionar_producto(
+        p_id IN NUMBER,
+        p_nom IN VARCHAR2,
+        p_desc IN VARCHAR2,
+        p_precio IN NUMBER,
+        p_stock IN NUMBER,
+        p_min IN NUMBER,
+        p_uni IN VARCHAR2,
+        p_activo IN VARCHAR2,
+        p_res OUT NUMBER
+    );
+
+    PROCEDURE sp_op_ajustar_stock(
+        p_id_prod IN NUMBER,
+        p_cant IN NUMBER,
+        p_mov IN VARCHAR2
+    );
+END PKG_PRODUCTOS;
+/
+
+create PACKAGE PKG_PEDIDOS AS
+    PROCEDURE sp_op_listar_pedidos(
+        p_res OUT SYS_REFCURSOR
+    );
+
+    PROCEDURE sp_op_consultar_pedido(
+        p_id  IN NUMBER,
+        p_res OUT SYS_REFCURSOR
+    );
+
+    PROCEDURE sp_op_listar_detalles(
+        p_id_pedido IN NUMBER,
+        p_res       OUT SYS_REFCURSOR
+    );
+
+    PROCEDURE sp_op_crear_pedido(
+        p_id     IN NUMBER,
+        p_cli    IN NUMBER,
+        p_usu    IN NUMBER,
+        p_fecha  IN DATE,
+        p_estado IN VARCHAR2,
+        p_pagado IN VARCHAR2,
+        p_res    OUT NUMBER
+    );
+
+    -- Gestión de productos elimina existentes y re-inserta nuevos
+    PROCEDURE sp_op_gestionar_productos_pedido(
+        p_id_pedido IN NUMBER,
+        p_detalles  IN t_lista_detalles
+    );
+
+    PROCEDURE sp_op_actualizar_estado(
+        p_id     IN NUMBER,
+        p_estado IN VARCHAR2,
+        p_res    OUT NUMBER
+    );
+END PKG_PEDIDOS;
+/
+
+create PROCEDURE sp_crear_rol (
+    p_nombre_rol  IN ROLES.NOMBRE_ROL%TYPE,
+    p_descripcion IN ROLES.DESCRIPCION%TYPE,
+    p_id_resultado OUT ROLES.ID_ROL%TYPE
+) AS
+BEGIN
+    INSERT INTO ROLES (nombre_rol, descripcion) VALUES (p_nombre_rol, p_descripcion)
+    RETURNING id_rol INTO p_id_resultado;
+    COMMIT;
+EXCEPTION WHEN OTHERS THEN ROLLBACK; RAISE;
+END;
+/
+
+create PROCEDURE sp_listar_roles (
+    p_cursor OUT SYS_REFCURSOR
+) AS
+BEGIN
+    OPEN p_cursor FOR
+        SELECT id_rol, nombre_rol, descripcion, activo, fecha_creacion
+        FROM ROLES
+        WHERE activo = 'S'
+        ORDER BY nombre_rol;
+END;
+/
+
+create PROCEDURE sp_gestionar_usuario (
+    p_id_usuario      IN USUARIOS.ID_USUARIO%TYPE,
+    p_id_rol          IN USUARIOS.ID_ROL%TYPE,
+    p_nombre_usuario  IN USUARIOS.NOMBRE_USUARIO%TYPE,
+    p_contrasena      IN USUARIOS.CONTRASENA%TYPE,
+    p_email           IN USUARIOS.EMAIL%TYPE,
+    p_nombre_completo IN USUARIOS.NOMBRE_COMPLETO%TYPE,
+    p_id_resultado    OUT USUARIOS.ID_USUARIO%TYPE
+) AS
+BEGIN
+    IF p_id_usuario IS NULL THEN
+        -- Si el ID es nulo, es una INSERCIÓN
+        INSERT INTO USUARIOS (id_rol, nombre_usuario, contrasena, email, nombre_completo)
+        VALUES (p_id_rol, p_nombre_usuario, p_contrasena, p_email, p_nombre_completo)
+        RETURNING id_usuario INTO p_id_resultado;
+    ELSE
+        -- Si el ID existe, es una ACTUALIZACIÓN
+        UPDATE USUARIOS
+        SET id_rol = p_id_rol,
+            nombre_usuario = p_nombre_usuario,
+            contrasena = NVL(p_contrasena, contrasena),
+            email = p_email,
+            nombre_completo = p_nombre_completo
+        WHERE id_usuario = p_id_usuario;
+
+        p_id_resultado := p_id_usuario;
+    END IF;
+    COMMIT;
+EXCEPTION WHEN OTHERS THEN ROLLBACK; RAISE;
+END;
+/
+
+create PROCEDURE sp_autenticar_usuario (
+    p_nombre_usuario IN USUARIOS.NOMBRE_USUARIO%TYPE,
+    p_contrasena     IN USUARIOS.CONTRASENA%TYPE,
+    p_cursor         OUT SYS_REFCURSOR
+) AS
+BEGIN
+    OPEN p_cursor FOR
+        SELECT u.id_usuario, u.id_rol, r.nombre_rol, u.nombre_completo
+        FROM USUARIOS u JOIN ROLES r ON u.id_rol = r.id_rol
+        WHERE u.nombre_usuario = p_nombre_usuario AND u.contrasena = p_contrasena AND u.activo = 'S';
+END;
+/
+
+create PROCEDURE sp_buscar_usuario (
+    p_nombre_usuario IN USUARIOS.NOMBRE_USUARIO%TYPE,
+    p_cursor         OUT SYS_REFCURSOR
+) AS
+BEGIN
+    OPEN p_cursor FOR
+        SELECT u.id_usuario, u.id_rol, r.nombre_rol, u.nombre_usuario,
+               u.contrasena, u.email, u.nombre_completo, u.activo,
+               u.fecha_creacion, u.ultimo_acceso
+        FROM USUARIOS u
+        INNER JOIN ROLES r ON u.id_rol = r.id_rol
+        WHERE u.nombre_usuario = p_nombre_usuario
+          AND u.activo = 'S';
+END;
+/
+
+create PROCEDURE sp_consultar_usuario_id (
+    p_id_usuario IN USUARIOS.ID_USUARIO%TYPE,
+    p_cursor     OUT SYS_REFCURSOR
+) AS
+BEGIN
+    OPEN p_cursor FOR
+        SELECT u.id_usuario, u.id_rol, r.nombre_rol, u.nombre_usuario,
+               u.contrasena, u.email, u.nombre_completo, u.activo,
+               u.fecha_creacion, u.ultimo_acceso
+        FROM USUARIOS u
+        INNER JOIN ROLES r ON u.id_rol = r.id_rol
+        WHERE u.id_usuario = p_id_usuario
+          AND u.activo = 'S';
+END;
+/
+
+create PROCEDURE sp_listar_usuarios (
+    p_cursor OUT SYS_REFCURSOR
+) AS
+BEGIN
+    OPEN p_cursor FOR
+        SELECT u.id_usuario, u.id_rol, r.nombre_rol, u.nombre_usuario,
+               u.email, u.nombre_completo, u.activo
+        FROM USUARIOS u
+        INNER JOIN ROLES r ON u.id_rol = r.id_rol
+        ORDER BY u.id_usuario;
+END;
+/
+
+create PROCEDURE sp_cambiar_contrasena (
+    p_nombre_usuario IN USUARIOS.NOMBRE_USUARIO%TYPE,
+    p_nueva_contrasena IN USUARIOS.CONTRASENA%TYPE
+) AS
+BEGIN
+    UPDATE USUARIOS
+    SET contrasena = p_nueva_contrasena
+    WHERE nombre_usuario = p_nombre_usuario;
+
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        RAISE;
+END;
+/
+
+create PROCEDURE sp_eliminar_usuario (
+    p_id_usuario IN USUARIOS.ID_USUARIO%TYPE,
+    p_resultado  OUT NUMBER
+) AS
+BEGIN
+    UPDATE USUARIOS
+    SET activo = 'N'
+    WHERE id_usuario = p_id_usuario;
+
+    p_resultado := SQL%ROWCOUNT;
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        p_resultado := -1;
+        RAISE;
+END;
+/
+
+create PROCEDURE sp_activar_usuario (
+    p_id_usuario IN USUARIOS.ID_USUARIO%TYPE,
+    p_resultado  OUT NUMBER
+) AS
+BEGIN
+    UPDATE USUARIOS
+    SET activo = 'S'
+    WHERE id_usuario = p_id_usuario;
+
+    p_resultado := SQL%ROWCOUNT;
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        p_resultado := -1;
+        RAISE;
+END;
+/
+
+create PROCEDURE sp_gestionar_cliente (
+    p_id_cliente   IN CLIENTES.ID_CLIENTE%TYPE,
+    p_nombre       IN CLIENTES.NOMBRE%TYPE,
+    p_telefono     IN CLIENTES.TELEFONO%TYPE,
+    p_direccion    IN CLIENTES.DIRECCION%TYPE,
+    p_email        IN CLIENTES.EMAIL%TYPE,
+    p_notas        IN CLIENTES.NOTAS%TYPE,
+    p_id_resultado OUT CLIENTES.ID_CLIENTE%TYPE
+) AS
+BEGIN
+    IF p_id_cliente IS NULL THEN
+        INSERT INTO CLIENTES (nombre, telefono, direccion, email, notas)
+        VALUES (p_nombre, p_telefono, p_direccion, p_email, p_notas)
+        RETURNING id_cliente INTO p_id_resultado;
+    ELSE
+        UPDATE CLIENTES SET nombre=p_nombre, telefono=p_telefono, direccion=p_direccion, email=p_email, notas=p_notas
+        WHERE id_cliente=p_id_cliente;
+        p_id_resultado := p_id_cliente;
+    END IF;
+    COMMIT;
+EXCEPTION WHEN OTHERS THEN ROLLBACK; RAISE;
+END;
+/
+
+create PROCEDURE sp_listar_clientes (
+    p_cursor OUT SYS_REFCURSOR
+) AS
+BEGIN
+    OPEN p_cursor FOR
+        SELECT id_cliente, nombre, telefono, direccion, email, notas, activo, fecha_registro
+        FROM CLIENTES
+        WHERE activo = 'S'
+        ORDER BY nombre;
+END;
+/
+
+create PROCEDURE sp_consultar_cliente (
+    p_id_cliente IN CLIENTES.ID_CLIENTE%TYPE,
+    p_cursor     OUT SYS_REFCURSOR
+) AS
+BEGIN
+    OPEN p_cursor FOR
+        SELECT id_cliente, nombre, telefono, direccion, email, notas, activo, fecha_registro
+        FROM CLIENTES
+        WHERE id_cliente = p_id_cliente;
+END;
+/
+
+create PROCEDURE sp_gestionar_producto (
+    p_id_producto   IN PRODUCTOS.ID_PRODUCTO%TYPE,
+    p_nombre        IN PRODUCTOS.NOMBRE%TYPE,
+    p_descripcion   IN PRODUCTOS.DESCRIPCION%TYPE,
+    p_precio        IN PRODUCTOS.PRECIO%TYPE,
+    p_stock_actual  IN PRODUCTOS.STOCK_ACTUAL%TYPE,
+    p_stock_minimo  IN PRODUCTOS.STOCK_MINIMO%TYPE,
+    p_unidad        IN PRODUCTOS.UNIDAD_MEDIDA%TYPE,
+    p_activo        IN PRODUCTOS.ACTIVO%TYPE,
+    p_id_resultado  OUT PRODUCTOS.ID_PRODUCTO%TYPE
+) AS
+BEGIN
+    IF p_id_producto IS NULL THEN
+        INSERT INTO PRODUCTOS (nombre, descripcion, precio, stock_actual, stock_minimo, unidad_medida, activo)
+        VALUES (p_nombre, p_descripcion, p_precio, NVL(p_stock_actual,0), p_stock_minimo, p_unidad, NVL(p_activo, 'S'))
+        RETURNING id_producto INTO p_id_resultado;
+    ELSE
+        UPDATE PRODUCTOS SET nombre=p_nombre, descripcion=p_descripcion, precio=p_precio,
+               stock_actual=NVL(p_stock_actual, stock_actual), stock_minimo=p_stock_minimo,
+               unidad_medida=p_unidad, activo=NVL(p_activo, activo) -- Actualizar el estado activo
+        WHERE id_producto=p_id_producto;
+        p_id_resultado := p_id_producto;
+    END IF;
+    COMMIT;
+EXCEPTION WHEN OTHERS THEN ROLLBACK; RAISE;
+END;
+/
+
+create PROCEDURE sp_listar_productos (
+    p_cursor OUT SYS_REFCURSOR
+) AS
+BEGIN
+    OPEN p_cursor FOR
+        SELECT id_producto, nombre, descripcion, precio, stock_actual,
+               stock_minimo, unidad_medida, activo, fecha_creacion
+        FROM PRODUCTOS
+        ORDER BY nombre;
+END;
+/
+
+create PROCEDURE sp_consultar_producto (
+    p_id_producto IN PRODUCTOS.ID_PRODUCTO%TYPE,
+    p_cursor      OUT SYS_REFCURSOR
+) AS
+BEGIN
+    OPEN p_cursor FOR
+        SELECT id_producto, nombre, descripcion, precio, stock_actual,
+               stock_minimo, unidad_medida, activo, fecha_creacion
+        FROM PRODUCTOS
+        WHERE id_producto = p_id_producto;
+END;
+/
+
+create PROCEDURE sp_ajustar_stock (
+    p_id_producto IN PRODUCTOS.ID_PRODUCTO%TYPE,
+    p_cantidad    IN NUMBER,
+    p_movimiento  IN VARCHAR2
+) AS
+BEGIN
+    IF p_movimiento = 'ENTRADA' THEN
+        UPDATE PRODUCTOS SET stock_actual = stock_actual + p_cantidad WHERE id_producto = p_id_producto;
+    ELSIF p_movimiento = 'SALIDA' THEN
+        UPDATE PRODUCTOS SET stock_actual = stock_actual - p_cantidad WHERE id_producto = p_id_producto;
+    END IF;
+    COMMIT;
+EXCEPTION WHEN OTHERS THEN ROLLBACK; RAISE;
+END;
+/
+
+create PROCEDURE sp_gestionar_pedido (
+    p_id_pedido       IN PEDIDOS.ID_PEDIDO%TYPE,
+    p_id_cliente      IN PEDIDOS.ID_CLIENTE%TYPE,
+    p_id_usuario      IN PEDIDOS.ID_USUARIO_RESPONSABLE%TYPE,
+    p_fecha_prog      IN PEDIDOS.FECHA_PROGRAMADA%TYPE,
+    p_estado          IN PEDIDOS.ESTADO%TYPE,
+    p_pagado          IN CHAR DEFAULT 'N',
+    p_id_resultado    OUT PEDIDOS.ID_PEDIDO%TYPE
+) AS
+BEGIN
+    IF p_id_pedido IS NULL THEN
+        INSERT INTO PEDIDOS (id_cliente, id_usuario_responsable, fecha_pedido, fecha_programada, estado, pagado)
+        VALUES (p_id_cliente, p_id_usuario, CURRENT_TIMESTAMP, p_fecha_prog, NVL(p_estado, 'PENDIENTE'), NVL(p_pagado, 'N'))
+        RETURNING id_pedido INTO p_id_resultado;
+    ELSE
+        UPDATE PEDIDOS SET id_cliente=p_id_cliente, id_usuario_responsable=p_id_usuario,
+               fecha_programada=p_fecha_prog, estado=p_estado, pagado=NVL(p_pagado, 'N')
+        WHERE id_pedido=p_id_pedido;
+        p_id_resultado := p_id_pedido;
+    END IF;
+    COMMIT;
+EXCEPTION WHEN OTHERS THEN ROLLBACK; RAISE;
+END;
+/
+
+create PROCEDURE sp_insertar_detalles_pedido (
+    p_id_pedido  IN PEDIDO_PRODUCTO.ID_PEDIDO%TYPE,
+    p_detalles   IN t_lista_detalles
+) AS
+    v_stock_actual NUMBER;
+    v_nombre_producto VARCHAR2(200);
+BEGIN
+    -- Validar stock antes de insertar
+    FOR i IN 1 .. p_detalles.COUNT LOOP
+        SELECT stock_actual, nombre INTO v_stock_actual, v_nombre_producto
+        FROM PRODUCTOS
+        WHERE id_producto = p_detalles(i).id_producto;
+
+        IF v_stock_actual < p_detalles(i).cantidad THEN
+            RAISE_APPLICATION_ERROR(-20001, 'Stock insuficiente para el producto: ' || v_nombre_producto || '. Stock disponible: ' || v_stock_actual || ', solicitado: ' || p_detalles(i).cantidad);
+        END IF;
+    END LOOP;
+
+    -- Si hay stock para todos los productos
+    FORALL i IN 1 .. p_detalles.COUNT
+        INSERT INTO PEDIDO_PRODUCTO (id_pedido, id_producto, cantidad, precio_unitario)
+        VALUES (
+            p_id_pedido,
+            p_detalles(i).id_producto,
+            p_detalles(i).cantidad,
+            p_detalles(i).precio
+        );
+END;
+/
+
+create PROCEDURE sp_calcular_total (p_id_pedido IN PEDIDOS.ID_PEDIDO%TYPE) AS
+BEGIN
+    UPDATE PEDIDOS SET total = (SELECT NVL(SUM(cantidad*precio_unitario),0) FROM PEDIDO_PRODUCTO WHERE id_pedido=p_id_pedido)
+    WHERE id_pedido = p_id_pedido;
+END;
+/
+
+create PROCEDURE sp_gestionar_productos_pedido (
+    p_id_pedido  IN PEDIDO_PRODUCTO.ID_PEDIDO%TYPE,
+    p_detalles   IN t_lista_detalles
+) AS
+BEGIN
+    DELETE FROM PEDIDO_PRODUCTO WHERE id_pedido = p_id_pedido;
+
+    IF p_detalles IS NOT NULL AND p_detalles.COUNT > 0 THEN
+        sp_insertar_detalles_pedido(p_id_pedido, p_detalles);
+    END IF;
+
+    sp_calcular_total(p_id_pedido);
+END;
+/
+
+create PROCEDURE sp_listar_pedidos (
+    p_cursor OUT SYS_REFCURSOR
+) AS
+BEGIN
+    OPEN p_cursor FOR
+        SELECT p.id_pedido, p.id_cliente, c.nombre as nombre_cliente,
+               p.id_usuario_responsable, u.nombre_completo as nombre_usuario,
+               p.fecha_pedido, p.fecha_programada, p.estado, p.pagado,
+               p.total, p.fecha_entrega
+        FROM PEDIDOS p
+        INNER JOIN CLIENTES c ON p.id_cliente = c.id_cliente
+        INNER JOIN USUARIOS u ON p.id_usuario_responsable = u.id_usuario
+        ORDER BY p.fecha_programada DESC;
+END;
+/
+
+create PROCEDURE sp_consultar_pedido (
+    p_id_pedido IN PEDIDOS.ID_PEDIDO%TYPE,
+    p_cursor    OUT SYS_REFCURSOR
+) AS
+BEGIN
+    OPEN p_cursor FOR
+        SELECT p.id_pedido, p.id_cliente, c.nombre as nombre_cliente,
+               p.id_usuario_responsable, u.nombre_completo as nombre_usuario,
+               p.fecha_pedido, p.fecha_programada, p.estado, p.pagado,
+               p.total, p.fecha_entrega
+        FROM PEDIDOS p
+        INNER JOIN CLIENTES c ON p.id_cliente = c.id_cliente
+        INNER JOIN USUARIOS u ON p.id_usuario_responsable = u.id_usuario
+        WHERE p.id_pedido = p_id_pedido;
+END;
+/
+
+create PROCEDURE sp_listar_detalles_pedido (
+    p_id_pedido IN PEDIDO_PRODUCTO.ID_PEDIDO%TYPE,
+    p_cursor    OUT SYS_REFCURSOR
+) AS
+BEGIN
+    OPEN p_cursor FOR
+        SELECT pp.id_pedido, pp.id_producto, pr.nombre as nombre_producto,
+               pp.cantidad, pp.precio_unitario
+        FROM PEDIDO_PRODUCTO pp
+        INNER JOIN PRODUCTOS pr ON pp.id_producto = pr.id_producto
+        WHERE pp.id_pedido = p_id_pedido;
+END;
+/
+
+create PROCEDURE sp_actualizar_estado_pedido (
+    p_id_pedido IN PEDIDOS.ID_PEDIDO%TYPE,
+    p_estado    IN PEDIDOS.ESTADO%TYPE,
+    p_resultado OUT NUMBER
+) AS
+BEGIN
+    UPDATE PEDIDOS
+    SET estado = p_estado,
+        fecha_entrega = CASE WHEN p_estado = 'ENTREGADO' THEN CURRENT_TIMESTAMP ELSE fecha_entrega END
+    WHERE id_pedido = p_id_pedido;
+
+    IF p_estado IN ('LISTO', 'ENTREGADO') THEN
+        sp_calcular_total(p_id_pedido);
+    END IF;
+
+    p_resultado := SQL%ROWCOUNT;
+END;
+/
+

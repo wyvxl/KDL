@@ -1,0 +1,79 @@
+/* Estilos para la página de Clientes */
+.clients-page {
+    padding: 2rem;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.clients-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.client-card {
+    background-color: var(--color-bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: var(--transition);
+}
+
+.client-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--color-primary-light);
+}
+
+.client-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem; /* Ajustado para el padding-bottom */
+    padding-bottom: 1rem; /* Añadido para la línea divisoria */
+    border-bottom: 1px solid var(--border-color); /* Línea divisoria */
+}
+
+.client-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: var(--text-primary);
+}
+
+.client-info {
+    margin-top: 1rem; /* Ajustado para el espaciado */
+    flex-grow: 1;
+}
+
+.info-row {
+    margin-bottom: 0.5rem;
+    color: var(--text-secondary);
+}
+
+.info-row span {
+    display: block;
+}
+
+.client-actions {
+    margin-top: 1.5rem; /* Ajustado para el padding-top */
+    padding-top: 1rem; /* Añadido para la línea divisoria */
+    border-top: 1px solid var(--border-color); /* Línea divisoria */
+    display: flex;
+    justify-content: flex-end;
+}
+
+.empty-state {
+    text-align: center;
+    width: 100%;
+    padding: 2rem;
+    color: var(--text-secondary);
+}

@@ -1,0 +1,123 @@
+.navbar {
+    background-color: var(--color-bg-card);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    height: 64px;
+}
+
+.navbar-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 100%;
+}
+
+.navbar-brand .brand-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    color: var(--color-primary);
+    font-size: 1.25rem;
+    font-weight: 700;
+    font-family: 'Outfit', sans-serif;
+}
+
+.brand-icon {
+    color: var(--color-primary);
+    /* Ensure icon size is controlled if it's an SVG */
+    width: 24px;
+    height: 24px;
+}
+
+.navbar-menu {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.nav-link {
+    color: var(--color-text-light);
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: var(--border-radius-sm);
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nav-link:hover {
+    background-color: var(--color-bg-hover);
+    color: var(--color-text);
+}
+
+.nav-link.active {
+    background-color: var(--color-primary-soft);
+    color: var(--color-primary);
+}
+
+.navbar-user {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-left: 16px;
+    border-left: 1px solid var(--border-color);
+}
+
+.user-name {
+    color: var(--color-text);
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.btn-logout {
+    background-color: transparent;
+    color: var(--color-text-light);
+    border: 1px solid var(--border-color);
+    padding: 8px 16px;
+    border-radius: var(--border-radius-sm);
+    font-weight: 500;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-logout:hover {
+    background-color: var(--color-bg-hover);
+    color: var(--color-danger);
+    border-color: var(--color-danger);
+}
+
+@media (max-width: 968px) {
+    .navbar-container {
+        padding: 0 16px;
+    }
+
+    .navbar-menu {
+        gap: 4px;
+    }
+
+    .nav-link {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+
+    .brand-text {
+        display: none;
+    }
+
+    .user-name {
+        display: none;
+    }
+}
