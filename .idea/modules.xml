@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/KDL.iml" filepath="$PROJECT_DIR$/.idea/KDL.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/KITS.main.iml" filepath="$PROJECT_DIR$/.idea/modules/KITS.main.iml" />
+    </modules>
+  </component>
+</project>
