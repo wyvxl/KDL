@@ -154,12 +154,14 @@ const OrderModal: React.FC<OrderModalProps> = ({ isOpen, onClose, onOrderAdded, 
   };
 
   // Efecto que se dispara cuando se abre el modal o cambia el pedido seleccionado
+  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps -- carga/reset intencional al abrir el modal */
   useEffect(() => {
     if (isOpen) {
       setError(''); // Limpiar errores previos
       void loadInitialData();
     }
   }, [isOpen, order]);
+  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
   // Función para reintentar carga de datos
   const retryLoadData = () => {

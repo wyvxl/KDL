@@ -1,5 +1,6 @@
 package org.kits.controllers;
 
+import jakarta.validation.Valid;
 import org.kits.bl.LProducto;
 import org.kits.dto.AjusteStockDTO;
 import org.kits.entities.Producto;
@@ -57,7 +58,7 @@ public class ProductoController {
      * @return ID del producto creado/actualizado
      */
     @PostMapping
-    public ResponseEntity<Integer> Guardar(@RequestBody Producto producto) {
+    public ResponseEntity<Integer> Guardar(@Valid @RequestBody Producto producto) {
         logger.info("Solicitud para guardar producto: " + producto.getNombre());
         try {
             int result = this.logica.Guardar(producto);
@@ -77,7 +78,7 @@ public class ProductoController {
      * @return Respuesta vacía (200 OK) si el ajuste fue correcto
      */
     @PostMapping("ajustar-stock")
-    public ResponseEntity<Void> AjustarStock(@RequestBody AjusteStockDTO ajuste) {
+    public ResponseEntity<Void> AjustarStock(@Valid @RequestBody AjusteStockDTO ajuste) {
         this.logica.AjustarStock(ajuste.getIdProducto(), ajuste.getCantidad(), ajuste.getMovimiento());
         return ResponseEntity.ok().build();
     }

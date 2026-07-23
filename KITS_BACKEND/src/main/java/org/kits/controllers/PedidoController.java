@@ -19,10 +19,10 @@ import java.util.logging.Logger;
  * Controlador REST para operaciones de Pedidos.
  * Gestiona la creación, actualización, consulta y cambio de estado de pedidos.
  * Endpoints base: /pedido
+ * (CORS se gestiona de forma centralizada en SecurityConfig.)
  */
 @RestController
 @RequestMapping("pedido")
-@CrossOrigin(origins = "http://localhost:5173") // Solo permitir Frontend de desarrollo
 public class PedidoController {
 
     private static final Logger LOGGER = Logger.getLogger(PedidoController.class.getName());

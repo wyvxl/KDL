@@ -41,6 +41,7 @@ const sanitizeForLog = (data: unknown): string => {
   // Remover caracteres peligrosos para logs
   return logString
     .replace(/[\r\n]/g, ' ') // Reemplazar saltos de línea
+    // eslint-disable-next-line no-control-regex -- se remueven intencionalmente caracteres de control del log
     .replace(/[\x00-\x1F\x7F]/g, '') // Remover caracteres de control
     .substring(0, 500); // Limitar longitud
 };
@@ -51,8 +52,8 @@ export const handleApiError = (error: unknown, fallbackData?: unknown) => {
 
   // Verificamos si el error es un objeto válido antes de acceder a sus propiedades
   const isErrorObject = error && typeof error === 'object' && error !== null;
-  const errorCode = isErrorObject && 'code' in error ? (error as any).code : undefined;
-  const errorMessage = isErrorObject && 'message' in error ? (error as any).message : undefined;
+  const errorCode = isErrorObject && 'code' in error ? (error as { code?: string }).code : undefined;
+  const errorMessage = isErrorObject && 'message' in error ? (error as { message?: string }).message : undefined;
 
   // Si es un error de conexión (backend caído o inalcanzable), usamos fallback si existe
   if (isConnectionError(errorCode, errorMessage)) {
@@ -86,7 +87,7 @@ export const isBackendAvailable = async (): Promise<boolean> => {
     clearTimeout(timeoutId);
     // Retorna true solo si el status HTTP es 200-299
     return response.ok;
-  } catch (e) {
+  } catch {
     // Si falla el fetch por timeout o red, el backend no está disponible
     clearTimeout(timeoutId);
     return false;

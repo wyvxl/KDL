@@ -44,17 +44,6 @@ public class ConnectionManager implements IConnectionManager {
     }
 
     /**
-     * Simula la desconexión (manejada por el pool).
-     *
-     * @return true siempre
-     */
-    @Override
-    public boolean Disconnect() {
-        // El pool de conexiones gestiona las conexiones automáticamente.
-        return true;
-    }
-
-    /**
      * Ejecuta un procedimiento almacenado en la base de datos.
      * Soporta parámetros de entrada, salida, cursores y arrays.
      *

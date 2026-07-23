@@ -23,6 +23,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, usuario 
   const [error, setError] = useState('');
   const [roles, setRoles] = useState<Rol[]>([]);
 
+  /* eslint-disable react-hooks/exhaustive-deps -- carga de roles una sola vez al montar */
   useEffect(() => {
     const fetchRoles = async () => {
       try {
@@ -59,7 +60,9 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, usuario 
     };
     void fetchRoles();
   }, []);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
+  /* eslint-disable react-hooks/set-state-in-effect -- sincronización intencional del formulario con el usuario */
   useEffect(() => {
     if (usuario) {
       setFormData({ ...usuario, contrasena: '' });
@@ -75,6 +78,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, usuario 
       }));
     }
   }, [usuario, roles]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;

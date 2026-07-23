@@ -12,7 +12,6 @@ import { UserModal, ChangePasswordModal, RolModal } from '../../components/modal
 const Users: React.FC = () => {
     // Estados principales de datos
     const [usuarios, setUsuarios] = useState<Usuario[]>([]);
-    const [filteredUsuarios, setFilteredUsuarios] = useState<Usuario[]>([]);
     const [roles, setRoles] = useState<Rol[]>([]);
 
     // Estados de modales
@@ -30,21 +29,6 @@ const Users: React.FC = () => {
     const [roleFilter, setRoleFilter] = useState<number | ''>('');
     const [statusFilter, setStatusFilter] = useState<string>('');
     const [mostrarFiltros, setMostrarFiltros] = useState<boolean>(false);
-
-    // Cargar datos iniciales
-    useEffect(() => {
-        const loadInitialData = async () => {
-            // Se ejecutan en paralelo para optimizar la carga inicial
-            await Promise.all([loadUsuarios(), loadRoles()]);
-        };
-
-        loadInitialData().catch(console.error);
-    }, []);
-
-    // Reaplicar filtros cuando cambian los criterios
-    useEffect(() => {
-        filterUsuarios();
-    }, [usuarios, searchTerm, roleFilter, statusFilter]);
 
     // Cargar usuarios desde backend
     const loadUsuarios = async () => {
@@ -69,10 +53,21 @@ const Users: React.FC = () => {
         }
     };
 
+    // Cargar datos iniciales
+    useEffect(() => {
+        const loadInitialData = async () => {
+            // Se ejecutan en paralelo para optimizar la carga inicial
+            await Promise.all([loadUsuarios(), loadRoles()]);
+        };
+
+        loadInitialData().catch(console.error);
+    }, []);
+
     /**
      * Aplica los filtros de búsqueda, rol y estado sobre la lista de usuarios.
+     * Se calcula durante el render (sin estado ni efecto adicional).
      */
-    const filterUsuarios = () => {
+    const filterUsuarios = (): Usuario[] => {
         let filtered = usuarios;
 
         if (searchTerm) {
@@ -91,7 +86,7 @@ const Users: React.FC = () => {
             filtered = filtered.filter(usuario => usuario.activo === statusFilter);
         }
 
-        setFilteredUsuarios(filtered);
+        return filtered;
     };
 
     // --- Manejo de Usuario ---
@@ -140,8 +135,8 @@ const Users: React.FC = () => {
     };
 
     const handlePasswordChangeSuccess = () => {
-        // Podríamos mostrar un toast de éxito aquí
-        console.log('Contraseña cambiada exitosamente');
+        // Podríamos mostrar un toast de éxito aquí.
+        // (Se evita console.log; el linter solo permite console.warn/error.)
     };
 
     // --- Gestión de Roles ---
@@ -170,6 +165,9 @@ const Users: React.FC = () => {
         const role = roles.find(r => r.idRol === idRol);
         return role ? role.nombreRol : 'Desconocido';
     };
+
+    // Lista filtrada calculada en cada render a partir del estado actual.
+    const filteredUsuarios = filterUsuarios();
 
     return (
         <div className="users-page">

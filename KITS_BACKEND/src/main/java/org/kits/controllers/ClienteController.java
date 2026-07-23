@@ -1,5 +1,6 @@
 package org.kits.controllers;
 
+import jakarta.validation.Valid;
 import org.kits.bl.LCliente;
 import org.kits.entities.Cliente;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -76,7 +77,7 @@ public class ClienteController {
      * @return ResponseEntity con el ID del cliente guardado o error 500
      */
     @PostMapping
-    public ResponseEntity<Integer> Guardar(@RequestBody Cliente cliente) {
+    public ResponseEntity<Integer> Guardar(@Valid @RequestBody Cliente cliente) {
         try {
             int resultado = this.logica.Guardar(cliente);
             return ResponseEntity.ok(resultado);

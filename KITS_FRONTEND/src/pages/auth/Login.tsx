@@ -26,21 +26,13 @@ const Login: FC = () => {
         setError(null);
         setLoading(true);
         try {
-            // Llamada al servicio de autenticación
-            const user = await authService.login({ nombreUsuario: username, contrasena: password });
-
-            if (user) {
-                // Guardar usuario en LocalStorage para persistencia de sesión
-                localStorage.setItem('user', JSON.stringify(user));
-                // Redirigir al inicio (Dashboard)
-                navigate('/');
-            } else {
-                // Si el usuario no es válido, establece el mensaje de error directamente
-                setError('Credenciales incorrectas. Por favor, inténtalo de nuevo.');
-            }
+            // Llamada al servicio de autenticación (guarda token y usuario en localStorage)
+            await authService.login({ nombreUsuario: username, contrasena: password });
+            // Redirigir al inicio (Dashboard)
+            navigate('/');
         } catch (err) {
-            console.error(err);
-            setError('Ocurrió un error de red. Por favor, inténtalo de nuevo.');
+            // authService.login lanza un Error con un mensaje apropiado para el usuario.
+            setError(err instanceof Error ? err.message : 'No se pudo iniciar sesión. Inténtalo de nuevo.');
         } finally {
             setLoading(false);
         }

@@ -20,12 +20,14 @@ const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOpen, onC
     const [error, setError] = useState<string | null>(null);
 
     // Sincronizar stock inicial al abrir
+    /* eslint-disable react-hooks/set-state-in-effect -- sincronización intencional del stock al abrir el modal */
     useEffect(() => {
         if (isOpen && producto) {
             setNuevoStock(producto.stockActual);
             setError(null);
         }
     }, [isOpen, producto]);
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     if (!isOpen || !producto) return null;
 

@@ -1,5 +1,6 @@
 package org.kits.entities;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 import java.util.List;
@@ -17,9 +18,10 @@ public class Usuario {
     /**
      * Nombre de usuario para el inicio de sesión.
      */
+    @NotBlank(message = "El nombre de usuario es requerido")
     private String nombreUsuario;
     /**
-     * Contraseña del usuario (generalmente almacenada en formato hash).
+     * Contraseña del usuario. Nota: en este proyecto (académico) se almacena en texto plano.
      */
     private String contrasena;
     /**
@@ -31,7 +33,7 @@ public class Usuario {
      */
     private String nombreCompleto;
     /**
-     * Estado del usuario ("A" para activo, "I" para inactivo).
+     * Estado del usuario ("S" para activo, "N" para inactivo).
      */
     private String activo;
     /**

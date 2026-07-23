@@ -1,5 +1,6 @@
 package org.kits.entities;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 /**
@@ -15,6 +16,7 @@ public class Producto {
     /**
      * Nombre del producto.
      */
+    @NotBlank(message = "El nombre del producto es requerido")
     private String nombre;
     /**
      * Descripción detallada del producto.
