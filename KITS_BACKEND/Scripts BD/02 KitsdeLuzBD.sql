@@ -129,8 +129,8 @@ BEGIN
     -- Solo se bloquea si el pedido es para hoy o antes y no hay stock /  Si es para despues se permite
     IF v_fecha_programada <= TRUNC(SYSDATE) THEN
         IF v_stock_disponible < :NEW.cantidad THEN
-            RAISE_APPLICATION_ERROR(-20001, 
-                'Stock insuficiente para entrega inmediata de: ' || v_nombre_producto || 
+            RAISE_APPLICATION_ERROR(-20001,
+                'Stock insuficiente para el producto: ' || v_nombre_producto ||
                 '. Disponible: ' || v_stock_disponible || ', Solicitado: ' || :NEW.cantidad);
         END IF;
     END IF;
