@@ -87,52 +87,70 @@ BEGIN
     PKG_PRODUCTOS.sp_op_gestionar_producto(NULL, 'Café Molido Tarrazú', 'Bolsa de 500gr premium', 5500, 20, 5, 'BOLSA', 'S', v_id_prod_5);
     
     -- Ajuste de Stock (Para probar sp_ajustar_stock)
-    PKG_PRODUCTOS.sp_op_ajustar_stock(v_id_prod_1, 5, 'SALIDA'); -- Stock 10 -> 5
-    PKG_PRODUCTOS.sp_op_ajustar_stock(v_id_prod_2, 10, 'ENTRADA'); -- Stock 50 -> 60
+    PKG_PRODUCTOS.sp_op_ajustar_stock(v_id_prod_1, 5, 'SALIDA'); -- Stock 50 -> 45
+    PKG_PRODUCTOS.sp_op_ajustar_stock(v_id_prod_2, 10, 'ENTRADA'); -- Stock 30 -> 40
 
     -- ==============================================================================
     -- 4. PEDIDOS (Escenarios completos de prueba)
     -- ==============================================================================
+    -- NOTA: sp_op_crear_pedido_completo recibe la cabecera Y los detalles en una sola
+    -- llamada (a diferencia de un diseño anterior con sp_op_crear_pedido +
+    -- sp_op_gestionar_productos_pedido, que ya no existen en PKG_PEDIDOS).
     DBMS_OUTPUT.PUT_LINE('-- Creando Pedidos con diferentes estados...');
 
     -- PEDIDO 1: Entregado (Cliente 1, Pagado)
-    PKG_PEDIDOS.sp_op_crear_pedido(NULL, v_id_cli_1, v_id_user_vendedor, SYSDATE - 1, 'ENTREGADO', 'S', v_id_pedido);
     v_detalles := t_lista_detalles(
-        t_detalle_pedido(v_id_prod_1, 1, 3500), -- 1x Pan de Masa Madre
-        t_detalle_pedido(v_id_prod_4, 5, 1200)  -- 5x Baguette
+        t_detalle_pedido(v_id_prod_1, 1, 3500), -- 1x Baguette Artesanal
+        t_detalle_pedido(v_id_prod_4, 5, 1200)  -- 5x Empanada de Pollo
     );
-    PKG_PEDIDOS.sp_op_gestionar_productos_pedido(v_id_pedido, v_detalles);
-    
+    PKG_PEDIDOS.sp_op_crear_pedido_completo(
+        p_id => NULL, p_cli => v_id_cli_1, p_usu => v_id_user_vendedor,
+        p_fecha => SYSDATE - 1, p_estado => 'ENTREGADO', p_pagado => 'S',
+        p_detalles => v_detalles, p_res => v_id_pedido
+    );
+
     -- PEDIDO 2: Pendiente (Cliente 2, para hoy)
-    PKG_PEDIDOS.sp_op_crear_pedido(NULL, v_id_cli_2, v_id_user_vendedor, SYSDATE, 'PENDIENTE', 'N', v_id_pedido);
     v_detalles := t_lista_detalles(
         t_detalle_pedido(v_id_prod_2, 3, 1800), -- 3x Croissant
-        t_detalle_pedido(v_id_prod_3, 1, 12500) -- 1x Kits de Postre
+        t_detalle_pedido(v_id_prod_3, 1, 4500)  -- 1x Queque Seco Naranja
     );
-    PKG_PEDIDOS.sp_op_gestionar_productos_pedido(v_id_pedido, v_detalles);
-    
+    PKG_PEDIDOS.sp_op_crear_pedido_completo(
+        p_id => NULL, p_cli => v_id_cli_2, p_usu => v_id_user_vendedor,
+        p_fecha => SYSDATE, p_estado => 'PENDIENTE', p_pagado => 'N',
+        p_detalles => v_detalles, p_res => v_id_pedido
+    );
+
     -- PEDIDO 3: En Proceso (Cliente 3, para futuro)
-    PKG_PEDIDOS.sp_op_crear_pedido(NULL, v_id_cli_3, v_id_user_vendedor, SYSDATE + 5, 'EN_PROCESO', 'S', v_id_pedido);
     v_detalles := t_lista_detalles(
         t_detalle_pedido(v_id_prod_4, 15, 1200),
         t_detalle_pedido(v_id_prod_5, 2, 5500)
     );
-    PKG_PEDIDOS.sp_op_gestionar_productos_pedido(v_id_pedido, v_detalles);
+    PKG_PEDIDOS.sp_op_crear_pedido_completo(
+        p_id => NULL, p_cli => v_id_cli_3, p_usu => v_id_user_vendedor,
+        p_fecha => SYSDATE + 5, p_estado => 'EN_PROCESO', p_pagado => 'S',
+        p_detalles => v_detalles, p_res => v_id_pedido
+    );
 
     -- PEDIDO 4: Cancelado (Cliente 4)
-    PKG_PEDIDOS.sp_op_crear_pedido(NULL, v_id_cli_4, v_id_user_vendedor, SYSDATE - 2, 'CANCELADO', 'N', v_id_pedido);
     v_detalles := t_lista_detalles(
         t_detalle_pedido(v_id_prod_1, 2, 3500)
     );
-    PKG_PEDIDOS.sp_op_gestionar_productos_pedido(v_id_pedido, v_detalles);
+    PKG_PEDIDOS.sp_op_crear_pedido_completo(
+        p_id => NULL, p_cli => v_id_cli_4, p_usu => v_id_user_vendedor,
+        p_fecha => SYSDATE - 2, p_estado => 'CANCELADO', p_pagado => 'N',
+        p_detalles => v_detalles, p_res => v_id_pedido
+    );
 
     -- PEDIDO 5: Listo para entregar (Cliente 1 de nuevo)
-    PKG_PEDIDOS.sp_op_crear_pedido(NULL, v_id_cli_1, v_id_user_vendedor, SYSDATE, 'LISTO', 'N', v_id_pedido);
     v_detalles := t_lista_detalles(
         t_detalle_pedido(v_id_prod_2, 10, 1800),
         t_detalle_pedido(v_id_prod_5, 1, 5500)
     );
-    PKG_PEDIDOS.sp_op_gestionar_productos_pedido(v_id_pedido, v_detalles);
+    PKG_PEDIDOS.sp_op_crear_pedido_completo(
+        p_id => NULL, p_cli => v_id_cli_1, p_usu => v_id_user_vendedor,
+        p_fecha => SYSDATE, p_estado => 'LISTO', p_pagado => 'N',
+        p_detalles => v_detalles, p_res => v_id_pedido
+    );
     
     DBMS_OUTPUT.PUT_LINE('>>> CARGA INICIAL COMPLETA FINALIZADA EXITOSAMENTE <<<');
     DBMS_OUTPUT.PUT_LINE('Sistema listo con: 4 roles, 4 usuarios, 5 clientes, 5 productos, 5 pedidos');
