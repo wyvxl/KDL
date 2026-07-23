@@ -13,7 +13,8 @@ import {
     Truck,
     AlertCircle,
     CheckCircle2,
-    ArrowRight
+    ArrowRight,
+    type LucideIcon
 } from 'lucide-react';
 import { pedidoService } from '../../services/pedidoService';
 import { productoService } from '../../services/productoService';
@@ -22,6 +23,19 @@ import type { Pedido, DetallePedido } from '../orders';
 import type { Producto } from '../products';
 import './Dashboard.css';
 import Toast, { type ToastType } from '../../components/ui/Toast';
+
+// KPI Card: componente presentacional puro, definido a nivel de módulo (no dentro del render).
+const KPICard = ({ title, value, icon: Icon, variant }: { title: string; value: number; icon: LucideIcon; variant: string }) => (
+    <div className="kpi-card">
+        <div className={`kpi-icon kpi-${variant}`}>
+            <Icon size={28} />
+        </div>
+        <div className="kpi-content">
+            <span className="kpi-label">{title}</span>
+            <span className="kpi-value">{value}</span>
+        </div>
+    </div>
+);
 
 const Dashboard: React.FC = () => {
     const navigate = useNavigate();
@@ -70,7 +84,7 @@ const Dashboard: React.FC = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const promises: Promise<any>[] = [];
+                const promises: Promise<unknown>[] = [];
                 if (hasPermission('VER_PEDIDOS')) promises.push(pedidoService.listar());
                 else promises.push(Promise.resolve([]));
 
@@ -151,6 +165,7 @@ const Dashboard: React.FC = () => {
         };
 
         void fetchData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- carga única al montar
     }, []);
 
     if (loading) {
@@ -169,19 +184,6 @@ const Dashboard: React.FC = () => {
     };
 
     // --- RENDER HELPERS ---
-
-    // KPI Card Component
-    const KPICard = ({ title, value, icon: Icon, variant }: { title: string, value: number, icon: any, variant: string }) => (
-        <div className={`kpi-card`}>
-            <div className={`kpi-icon kpi-${variant}`}>
-                <Icon size={28} />
-            </div>
-            <div className="kpi-content">
-                <span className="kpi-label">{title}</span>
-                <span className="kpi-value">{value}</span>
-            </div>
-        </div>
-    );
 
     // Agenda Item Component
     const AgendaItem = ({ order, isLate }: { order: Pedido, isLate: boolean }) => {

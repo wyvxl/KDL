@@ -26,10 +26,6 @@ const Products: React.FC = () => {
     const [statusFilter, setStatusFilter] = useState<string>('TODOS'); // Nuevo estado para el filtro de activo
     const [mostrarBusqueda, setMostrarBusqueda] = useState<boolean>(false);
 
-    useEffect(() => {
-        void loadProductos();
-    }, []);
-
     /**
      * Carga la lista completa de productos desde el backend.
      */
@@ -52,6 +48,11 @@ const Products: React.FC = () => {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial al montar (loadProductos gestiona el estado de carga)
+        void loadProductos();
+    }, []);
 
     // Funciones de gestión del Modal de Producto (Crear/Editar)
     const handleNewProduct = () => {

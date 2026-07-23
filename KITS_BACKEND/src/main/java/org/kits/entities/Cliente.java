@@ -1,5 +1,6 @@
 package org.kits.entities;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 /**
@@ -15,6 +16,7 @@ public class Cliente {
     /**
      * Nombre completo del cliente.
      */
+    @NotBlank(message = "El nombre del cliente es requerido")
     private String nombre;
     /**
      * Número de teléfono de contacto.

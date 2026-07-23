@@ -8,7 +8,5 @@ import java.util.ArrayList;
 public interface IConnectionManager {
     boolean Connect();
 
-    boolean Disconnect();
-
     <T> T Execute(String command, ArrayList<Parameter<?>> parameters) throws SQLException;
 }

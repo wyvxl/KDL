@@ -21,6 +21,8 @@ const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onClientAdde
   const [loading, setLoading] = useState(false);
   const { toast, showToast, hideToast } = useToast();
 
+  // Sincroniza el formulario con el cliente recibido al abrir el modal (o lo limpia si es nuevo).
+  /* eslint-disable react-hooks/set-state-in-effect -- reset intencional del formulario al cambiar el cliente/abrir */
   React.useEffect(() => {
     if (client) {
       setFormData({
@@ -40,6 +42,7 @@ const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onClientAdde
       });
     }
   }, [client, isOpen]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleApiError = (serviceError: unknown) => {
     console.error('Error en servicio de clientes:', serviceError);
@@ -67,7 +70,7 @@ const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onClientAdde
 
     try {
       const cliente: Cliente = {
-        idCliente: client ? client.idCliente : null as any,
+        idCliente: client ? client.idCliente : undefined,
         nombre: formData.nombre,
         telefono: formData.telefono,
         direccion: formData.direccion,

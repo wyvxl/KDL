@@ -21,11 +21,6 @@ const Clients: React.FC = () => {
     const [busqueda, setBusqueda] = useState<string>('');
     const [mostrarBusqueda, setMostrarBusqueda] = useState<boolean>(false);
 
-    // Cargar clientes al montar el componente
-    useEffect(() => {
-        loadClientes();
-    }, []);
-
     /**
      * Obtiene la lista completa de clientes desde el backend.
      */
@@ -39,11 +34,12 @@ const Clients: React.FC = () => {
             } else {
                 throw new Error('Datos inválidos recibidos del servidor');
             }
-        } catch (err: any) {
+        } catch (err) {
             console.error('Error loading clientes:', err);
             setClientes([]);
             // Manejo diferenciado de errores (servidor vs conexión)
-            const errorMsg = err?.response?.status === 500
+            const status = (err as { response?: { status?: number } })?.response?.status;
+            const errorMsg = status === 500
                 ? 'Error del servidor - No se pueden cargar los datos'
                 : 'Backend no disponible - Verifique la conexión';
             setError(errorMsg);
@@ -51,6 +47,12 @@ const Clients: React.FC = () => {
             setLoading(false);
         }
     };
+
+    // Cargar clientes al montar el componente
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial al montar (loadClientes gestiona el estado de carga)
+        void loadClientes();
+    }, []);
 
     // Abre el modal para crear un nuevo cliente
     const handleNewClient = () => {

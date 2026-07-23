@@ -54,22 +54,6 @@ const Orders: React.FC = () => {
         });
     };
 
-    // Cargar pedidos al iniciar el componente
-    useEffect(() => {
-        void loadPedidos();
-    }, []);
-
-    // Cargar detalles automáticamente cuando se cargan los pedidos
-    useEffect(() => {
-        if (pedidos.length > 0) {
-            pedidos.forEach(pedido => {
-                if (pedido.idPedido && !pedidoDetalles[pedido.idPedido] && !loadingDetalles[pedido.idPedido]) {
-                    void loadPedidoDetalles(pedido.idPedido);
-                }
-            });
-        }
-    }, [pedidos]);
-
     // Función asíncrona para obtener la lista de pedidos desde el backend
     const loadPedidos = async () => {
         try {
@@ -103,6 +87,24 @@ const Orders: React.FC = () => {
             setLoadingDetalles(prev => ({ ...prev, [pedidoId]: false }));
         }
     };
+
+    // Cargar pedidos al iniciar el componente
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial al montar (loadPedidos gestiona el estado de carga)
+        void loadPedidos();
+    }, []);
+
+    // Cargar detalles automáticamente cuando se cargan los pedidos
+    useEffect(() => {
+        if (pedidos.length > 0) {
+            pedidos.forEach(pedido => {
+                if (pedido.idPedido && !pedidoDetalles[pedido.idPedido] && !loadingDetalles[pedido.idPedido]) {
+                    void loadPedidoDetalles(pedido.idPedido);
+                }
+            });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- se recarga intencionalmente al cambiar la lista de pedidos
+    }, [pedidos]);
 
     // Abre el modal para crear un NUEVO pedido
     const handleNewOrder = () => {

@@ -31,6 +31,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onProductA
   const { toast, showToast, hideToast } = useToast();
 
   // Efecto: Cargar datos al abrir modal si hay producto seleccionado
+  /* eslint-disable react-hooks/set-state-in-effect -- reset intencional del formulario al cambiar el producto/abrir */
   React.useEffect(() => {
     if (product) {
       setFormData({
@@ -55,6 +56,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onProductA
       });
     }
   }, [product, isOpen]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Manejo de envío
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,7 +66,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onProductA
     try {
       // Construir objeto Producto con conversiones numéricas
       const producto: Producto = {
-        idProducto: product ? product.idProducto : null as any,
+        idProducto: product ? product.idProducto : null,
         nombre: formData.nombre,
         descripcion: formData.descripcion,
         precio: parseFloat(formData.precio),
@@ -75,7 +77,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onProductA
       };
 
       // Guardar en backend con manejo de errores específico
-      let result: any;
+      let result: number | undefined = undefined;
       try {
         result = await productoService.guardar(producto);
       } catch (serviceError) {
