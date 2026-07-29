@@ -9,8 +9,8 @@ lógica de negocio vive en paquetes y procedimientos PL/SQL, y el backend solo l
 | Capa | Tecnología |
 |---|---|
 | Base de datos | Oracle (probado sobre Oracle Database Free) |
-| Backend | Java 21 · Spring Boot 4.1 · Gradle · JDBC sobre `ojdbc11` |
-| Frontend | React 19 · TypeScript · Vite |
+| Backend | Java 21 · Spring Boot 4.1 · Gradle 9 · JDBC sobre `ojdbc17` |
+| Frontend | React 19 · TypeScript 6 · Vite 8 |
 | Autenticación | JWT (`jjwt`), stateless |
 
 ## Estructura
