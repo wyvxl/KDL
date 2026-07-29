@@ -12,55 +12,53 @@ interface UserModalProps {
 
 const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, usuario }) => {
   const [formData, setFormData] = useState<Usuario>({
-    idUsuario: 0,
+    idUsuario: null, // null = usuario nuevo; el backend hace INSERT
     nombreUsuario: '',
     nombreCompleto: '',
     email: '',
-    idRol: 1,
+    idRol: undefined, // sin rol hasta que se sepa cuáles existen de verdad
     contrasena: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [roles, setRoles] = useState<Rol[]>([]);
 
-  /* eslint-disable react-hooks/exhaustive-deps -- carga de roles una sola vez al montar */
+  /**
+   * Rol por defecto para un usuario nuevo: el primero de la lista real.
+   *
+   * Nunca se inventa un id. Los ids de ROLES son GENERATED ALWAYS AS IDENTITY y se
+   * desplazan al recargar los datos de prueba, así que un `1` fijo puede apuntar a un
+   * rol que no existe y hacer fallar el INSERT por clave foránea.
+   */
+  const rolPorDefecto = (listaRoles: Rol[]): number | undefined => listaRoles[0]?.idRol;
+
+  // Carga de roles una sola vez al montar. Ya no depende de `usuario` ni de `formData`:
+  // quién es el rol por defecto lo decide el efecto de sincronización de abajo.
   useEffect(() => {
     const fetchRoles = async () => {
       try {
         const fetchedRoles = await rolService.listar();
         if (Array.isArray(fetchedRoles) && fetchedRoles.length > 0) {
           setRoles(fetchedRoles);
-          if (!usuario && !formData.idRol) {
-            setFormData((prev: Usuario) => ({ ...prev, idRol: fetchedRoles[0].idRol ?? 1 }));
-          }
           setError('');
         } else {
-          console.warn('No se encontraron roles, usando rol por defecto');
-          const defaultRoles = [{ idRol: 1, nombreRol: 'Usuario', descripcion: 'Rol por defecto' }];
-          setRoles(defaultRoles);
-          if (!usuario) {
-            setFormData((prev: Usuario) => ({ ...prev, idRol: 1 }));
-          }
+          // Sin roles no se puede crear un usuario: id_rol es NOT NULL con FK a ROLES.
+          // Antes se fabricaba un rol falso con id 1, que solo servía para que el
+          // guardado fallara después con un error mucho menos claro.
+          setRoles([]);
+          setError('No hay roles disponibles. No se puede crear ni editar usuarios.');
         }
       } catch (err) {
         console.error('Error al cargar roles:', err);
         const isNetworkError = err instanceof Error && (err.message.includes('Network') || err.message.includes('fetch'));
-        if (isNetworkError) {
-          setError('Sin conexión al servidor. Usando roles por defecto.');
-        } else {
-          setError('Error al cargar roles. Usando configuración por defecto.');
-        }
-        const fallbackRoles = [{ idRol: 1, nombreRol: 'Usuario', descripcion: 'Rol por defecto' }];
-        setRoles(fallbackRoles);
-        if (!usuario) {
-          setFormData((prev: Usuario) => ({ ...prev, idRol: 1 }));
-        }
-        setTimeout(() => setError(''), 5000);
+        setRoles([]);
+        setError(isNetworkError
+          ? 'Sin conexión al servidor. No se pudieron cargar los roles.'
+          : 'No se pudieron cargar los roles. Inténtelo nuevamente.');
       }
     };
     void fetchRoles();
   }, []);
-  /* eslint-enable react-hooks/exhaustive-deps */
 
   /* eslint-disable react-hooks/set-state-in-effect -- sincronización intencional del formulario con el usuario */
   useEffect(() => {
@@ -69,11 +67,11 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, usuario 
     } else {
       setFormData((prev: Usuario) => ({
         ...prev,
-        idUsuario: 0,
+        idUsuario: null,
         nombreUsuario: '',
         nombreCompleto: '',
         email: '',
-        idRol: roles.length > 0 ? roles[0].idRol ?? 1 : 1,
+        idRol: rolPorDefecto(roles),
         contrasena: ''
       }));
     }
@@ -84,18 +82,19 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, usuario 
     const { name, value } = e.target;
     setFormData((prev: Usuario) => ({
       ...prev,
-      [name]: name === 'idRol' ? Number(value) : value
+      // La opción vacía del select debe dejar idRol sin valor, no en 0.
+      [name]: name === 'idRol' ? (value === '' ? undefined : Number(value)) : value
     }));
     setError('');
   };
 
   const resetForm = () => {
     setFormData({
-      idUsuario: 0,
+      idUsuario: null,
       nombreUsuario: '',
       nombreCompleto: '',
       email: '',
-      idRol: roles.length > 0 ? roles[0].idRol ?? 1 : 1,
+      idRol: rolPorDefecto(roles),
       contrasena: ''
     });
     setError('');
@@ -141,6 +140,10 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, usuario 
       setError('El email es requerido');
       return;
     }
+    if (!formData.idRol) {
+      setError('Debe seleccionar un rol');
+      return;
+    }
     if (!usuario && !formData.contrasena) {
       setError('La contraseña es requerida para nuevos usuarios');
       return;
@@ -152,8 +155,17 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, usuario 
 
     try {
       setLoading(true);
-      await usuarioService.guardar(formData);
-      onSave(formData);
+      const idGuardado = await usuarioService.guardar(formData);
+
+      // El backend devuelve el id del usuario creado o actualizado. Si viene 0 es que
+      // no se guardó nada; sin esta comprobación el modal se cerraba como si todo
+      // hubiera ido bien y el usuario simplemente no aparecía en la lista.
+      if (!idGuardado || idGuardado <= 0) {
+        setError('El usuario no se pudo guardar. Verifique los datos e inténtelo nuevamente.');
+        return;
+      }
+
+      onSave({ ...formData, idUsuario: idGuardado });
       handleClose();
     } catch (serviceError) {
       handleApiError(serviceError);
@@ -222,10 +234,10 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, usuario 
               <label>Rol *</label>
               <select
                 name="idRol"
-                value={formData.idRol ?? 1}
+                value={formData.idRol ?? ''}
                 onChange={handleChange}
                 required
-                disabled={false}
+                disabled={roles.length === 0}
                 style={{
                   width: '100%',
                   padding: '0.75rem',
@@ -235,6 +247,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, usuario 
                   color: 'var(--text-primary)'
                 }}
               >
+                <option value="">Seleccionar rol</option>
                 {roles.map(rol => (
                   <option key={rol.idRol} value={rol.idRol}>
                     {rol.nombreRol}
@@ -268,7 +281,8 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, usuario 
             <button type="button" onClick={handleClose} className="btn btn-secondary" disabled={loading}>
               Cancelar
             </button>
-            <button type="submit" className="btn btn-primary" disabled={loading}>
+            {/* Sin roles cargados no se puede guardar: id_rol es NOT NULL con FK a ROLES */}
+            <button type="submit" className="btn btn-primary" disabled={loading || roles.length === 0}>
               {loading ? 'Guardando...' : 'Guardar'}
             </button>
           </div>

@@ -46,6 +46,21 @@ const sanitizeForLog = (data: unknown): string => {
     .substring(0, 500); // Limitar longitud
 };
 
+/**
+ * Devuelve el mensaje que mandó el backend, o uno por defecto si no vino ninguno.
+ *
+ * Los errores de negocio de la BD (stock insuficiente, pedido que ya no se puede
+ * editar) llegan en `response.data.error` redactados para que los lea el usuario,
+ * así que conviene mostrarlos tal cual en vez de un texto genérico.
+ *
+ * @param error       Error capturado (normalmente de Axios)
+ * @param porDefecto  Texto a usar si el backend no envió mensaje
+ */
+export const mensajeDeError = (error: unknown, porDefecto: string): string => {
+  const respuesta = (error as { response?: { data?: { error?: string } } })?.response;
+  return respuesta?.data?.error ?? porDefecto;
+};
+
 export const handleApiError = (error: unknown, fallbackData?: unknown) => {
   // Logueamos el error de forma segura
   console.error('Error capturado en API helper:', sanitizeForLog(error));

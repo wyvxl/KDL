@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { pedidoService } from '../../services/pedidoService';
 import { clienteService } from '../../services/clienteService';
 import { productoService } from '../../services/productoService';
@@ -7,7 +7,7 @@ import { useToast } from '../../hooks/useToast';
 import Toast from '../ui/Toast';
 import type { Pedido } from '../../pages/orders';
 import type { Cliente } from '../../pages/clients';
-import type { Producto as ProductoCompleto } from '../../pages/products';
+import type { DisponibilidadProducto } from '../../pages/products';
 
 // Definición de las propiedades que acepta el modal
 interface OrderModalProps {
@@ -16,6 +16,21 @@ interface OrderModalProps {
   onOrderAdded: () => void; // Callback al guardar exitosamente
   order?: Pedido | null; // Pedido a editar (null si es nuevo)
 }
+
+/** Línea del pedido que se está armando. */
+interface LineaPedido {
+  producto: DisponibilidadProducto;
+  cantidad: number;
+  precio: number;
+}
+
+/** Fecha de hoy como 'YYYY-MM-DD', en hora local (sin pasar por UTC). */
+const hoyISO = (): string => {
+  const hoy = new Date();
+  const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+  const dia = String(hoy.getDate()).padStart(2, '0');
+  return `${hoy.getFullYear()}-${mes}-${dia}`;
+};
 
 // Componente Modal para Crear/Editar Pedidos
 const OrderModal: React.FC<OrderModalProps> = ({ isOpen, onClose, onOrderAdded, order }) => {
@@ -28,10 +43,10 @@ const OrderModal: React.FC<OrderModalProps> = ({ isOpen, onClose, onOrderAdded, 
 
   // Listas de datos para dropdowns
   const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [productos, setProductos] = useState<ProductoCompleto[]>([]);
+  const [productos, setProductos] = useState<DisponibilidadProducto[]>([]);
 
-  // Estado para manejar la lista de productos agregados al pedido actual
-  const [selectedProducts, setSelectedProducts] = useState<{ producto: ProductoCompleto, cantidad: number, precio: number }[]>([]);
+  // Productos agregados al pedido actual
+  const [selectedProducts, setSelectedProducts] = useState<LineaPedido[]>([]);
 
   // Estados de carga y errores
   const [loading, setLoading] = useState(false);
@@ -41,30 +56,29 @@ const OrderModal: React.FC<OrderModalProps> = ({ isOpen, onClose, onOrderAdded, 
   const [error, setError] = useState<string>('');
 
   // Carga la lista de clientes desde el backend
-  const loadClientes = async () => {
+  const loadClientes = async (): Promise<Cliente[]> => {
     try {
       setLoadingClientes(true);
       const data = await clienteService.listar();
       setClientes(data);
       return data;
-    } catch (error) {
-      console.error('Error loading clients:', error);
-      return [];
     } finally {
       setLoadingClientes(false);
     }
   };
 
-  // Carga la lista de productos disponibles desde el backend
-  const loadProductos = async () => {
+  /**
+   * Carga el catálogo con la disponibilidad para la fecha del pedido.
+   *
+   * Se excluye el propio pedido en edición para que sus cantidades no se cuenten
+   * como comprometidas contra sí mismo.
+   */
+  const loadProductos = async (fecha: string): Promise<DisponibilidadProducto[]> => {
     try {
       setLoadingProductos(true);
-      const data = await productoService.listar();
+      const data = await productoService.disponibilidad(fecha, order?.idPedido);
       setProductos(data);
       return data;
-    } catch (error) {
-      console.error('Error loading products:', error);
-      return [];
     } finally {
       setLoadingProductos(false);
     }
@@ -74,79 +88,60 @@ const OrderModal: React.FC<OrderModalProps> = ({ isOpen, onClose, onOrderAdded, 
   const loadInitialData = async () => {
     setLoading(true);
     try {
-      // Cargamos clientes y productos en paralelo
-      await Promise.all([loadClientes(), loadProductos()]);
+      // La fecha decide qué disponibilidad pedir, así que se resuelve primero.
+      // fechaProgramada llega del backend ya como 'YYYY-MM-DD'.
+      const fecha = order?.idPedido ? String(order.fechaProgramada).slice(0, 10) : hoyISO();
 
-      // Revertido: no usar helper local; se vuelve a usar toISOString().split('T')[0]
+      setFormData({
+        idCliente: order?.cliente?.idCliente?.toString() ?? '',
+        fechaProgramada: fecha,
+        pagado: !!order?.pagado
+      });
 
-      if (order && order.idPedido) {
-        // --- MODO EDICIÓN ---
-        // Rellenamos el formulario con los datos del pedido existente
-        setFormData({
-          idCliente: order.cliente?.idCliente?.toString() ?? '',
-          // Revertido: derivar fecha ISO estándar para compatibilidad previa
-          fechaProgramada: new Date(order.fechaProgramada).toISOString().split('T')[0],
-          pagado: !!order.pagado
-        });
+      const [, catalogo] = await Promise.all([loadClientes(), loadProductos(fecha)]);
 
-        // Obtenemos los detalles (productos) del pedido para rellenar la lista
+      if (order?.idPedido) {
+        // --- MODO EDICIÓN: rellenar las líneas con los detalles guardados ---
         const detalles = await pedidoService.listarDetalles(order.idPedido);
-        const productosDelPedido = detalles.map(detalle => {
-          // Buscamos el producto completo en la lista ya cargada para tener todos los datos
-          const productoOriginal = productos.find(p => p.idProducto === detalle.producto.idProducto);
 
-          // Si el producto no se encuentra en la lista actual (pudo ser eliminado),
-          // creamos un objeto de respaldo para mantener la consistencia del pedido.
-          const producto: ProductoCompleto = productoOriginal || {
+        setSelectedProducts(detalles.map(detalle => {
+          // Se busca en `catalogo` (el valor recién devuelto) y no en el estado
+          // `productos`, que en este punto todavía tiene el valor del render anterior.
+          const productoOriginal = catalogo.find(p => p.idProducto === detalle.producto.idProducto);
+
+          // Si el producto ya no está en el catálogo (se desactivó), se arma uno de
+          // respaldo con lo que devuelve el detalle para no perder la línea.
+          const producto: DisponibilidadProducto = productoOriginal ?? {
             idProducto: detalle.producto.idProducto,
-            nombre: detalle.producto.nombre ?? `(Producto no encontrado)`,
+            nombre: detalle.producto.nombre ?? '(Producto no encontrado)',
             descripcion: detalle.producto.descripcion ?? '',
-            precio: detalle.producto.precio ?? 0,
-            stockActual: 0, // No es relevante para la edición del pedido
+            precio: detalle.precioUnitario,
+            stockActual: 0,
             stockMinimo: 0,
             unidadMedida: '',
-            activo: 'N' // Asumimos inactivo si no está en la lista principal
+            activo: 'N',
+            comprometido: 0,
+            disponible: 0
           };
 
-          return {
-            producto,
-            cantidad: detalle.cantidad,
-            precio: detalle.precioUnitario
-          };
-        });
-
-        setSelectedProducts(productosDelPedido);
-
+          return { producto, cantidad: detalle.cantidad, precio: detalle.precioUnitario };
+        }));
       } else {
         // --- MODO CREACIÓN ---
-        // Reseteamos el formulario a valores por defecto
-        setFormData({
-          idCliente: '',
-          // Revertido: usar toISOString().split('T')[0] (UTC)
-          fechaProgramada: new Date().toISOString().split('T')[0], // Fecha de hoy por defecto
-          pagado: false
-        });
         setSelectedProducts([]);
       }
-    } catch (error) {
-      console.error("Error loading initial data for modal:", error);
+    } catch (err) {
+      console.error('Error loading initial data for modal:', err);
 
-      // Determinar tipo de error y mensaje apropiado
-      const isNetworkError = error instanceof Error &&
-        (error.message.includes('Network') || error.message.includes('fetch') || error.message.includes('ECONNREFUSED'));
+      const isNetworkError = err instanceof Error &&
+        (err.message.includes('Network') || err.message.includes('fetch') || err.message.includes('ECONNREFUSED'));
 
       if (isNetworkError) {
         setError('Sin conexión al servidor. Verifique su conexión e inténtelo nuevamente.');
-      } else if (error instanceof Error) {
-        setError(`Error al cargar datos: ${error.message}`);
+      } else if (err instanceof Error) {
+        setError(`Error al cargar datos: ${err.message}`);
       } else {
         setError('Error inesperado al cargar los datos del formulario.');
-      }
-
-      // Mantener datos existentes si es posible
-      if (clientes.length === 0 && productos.length === 0) {
-        // Si no hay datos, mostrar mensaje más específico
-        setError((prev: string) => prev + ' No se pudieron cargar clientes ni productos.');
       }
     } finally {
       setLoading(false);
@@ -155,7 +150,7 @@ const OrderModal: React.FC<OrderModalProps> = ({ isOpen, onClose, onOrderAdded, 
 
   // Efecto que se dispara cuando se abre el modal o cambia el pedido seleccionado
   /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps -- carga/reset intencional al abrir el modal */
-  useEffect(() => {
+  React.useEffect(() => {
     if (isOpen) {
       setError(''); // Limpiar errores previos
       void loadInitialData();
@@ -169,8 +164,27 @@ const OrderModal: React.FC<OrderModalProps> = ({ isOpen, onClose, onOrderAdded, 
     void loadInitialData();
   };
 
+  /**
+   * Al cambiar la fecha hay que recalcular la disponibilidad: lo comprometido depende
+   * del día. Se recarga aquí y no en un efecto para no competir con la carga inicial.
+   */
+  const handleFechaChange = (nuevaFecha: string) => {
+    setFormData(prev => ({ ...prev, fechaProgramada: nuevaFecha }));
+    if (!nuevaFecha) return;
+
+    void loadProductos(nuevaFecha)
+      .then(catalogo => {
+        // Refrescar la disponibilidad de las líneas ya agregadas.
+        setSelectedProducts(prev => prev.map(linea => {
+          const actualizado = catalogo.find(p => p.idProducto === linea.producto.idProducto);
+          return actualizado ? { ...linea, producto: actualizado } : linea;
+        }));
+      })
+      .catch(err => console.error('Error recargando disponibilidad:', err));
+  };
+
   // Agrega un producto a la lista local del pedido
-  const addProduct = (producto: ProductoCompleto) => {
+  const addProduct = (producto: DisponibilidadProducto) => {
     const exists = selectedProducts.find(p => p.producto.idProducto === producto.idProducto);
     if (!exists) {
       setSelectedProducts([...selectedProducts, {
@@ -205,6 +219,9 @@ const OrderModal: React.FC<OrderModalProps> = ({ isOpen, onClose, onOrderAdded, 
     return selectedProducts.reduce((total, item) => total + (item.cantidad * item.precio), 0);
   };
 
+  const esParaHoy = formData.fechaProgramada === hoyISO();
+  const lineasQueExceden = selectedProducts.filter(l => l.cantidad > l.producto.disponible);
+
   // Maneja el envío del formulario (Crear o Actualizar)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -218,7 +235,7 @@ const OrderModal: React.FC<OrderModalProps> = ({ isOpen, onClose, onOrderAdded, 
         return;
       }
 
-      // Construimos el objeto Pedido
+      // El responsable no se envía: el backend lo toma del token de la sesión.
       const pedido: Pedido = {
         idPedido: order ? order.idPedido : null,
         cliente: {
@@ -228,40 +245,21 @@ const OrderModal: React.FC<OrderModalProps> = ({ isOpen, onClose, onOrderAdded, 
           direccion: '',
           email: ''
         },
-        usuarioResponsable: {
-          idUsuario: currentUser.idUsuario,
-          nombreUsuario: '',
-          nombreCompleto: '',
-          email: '',
-          idRol: 0
-        },
         fechaProgramada: formData.fechaProgramada,
         estado: order ? order.estado : 'PENDIENTE', // Nuevo pedido inicia en PENDIENTE
         total: calculateTotal(),
         pagado: formData.pagado
       };
 
-      if (order?.idPedido) {
-        // Editar pedido existente
-        const detallesArray = selectedProducts.map(item => ({
-          idProducto: item.producto.idProducto!,
-          cantidad: item.cantidad,
-          precio: item.precio
-        }));
+      const detallesArray = selectedProducts.map(item => ({
+        idProducto: item.producto.idProducto!,
+        cantidad: item.cantidad,
+        precio: item.precio
+      }));
 
-        await pedidoService.crearCompleto(pedido, detallesArray);
-      } else {
-        // Crear nuevo pedido completo
-        const detallesArray = selectedProducts.map(item => ({
-          idProducto: item.producto.idProducto!,
-          cantidad: item.cantidad,
-          precio: item.precio
-        }));
+      await pedidoService.crearCompleto(pedido, detallesArray);
 
-        await pedidoService.crearCompleto(pedido, detallesArray);
-      }
-
-      showToast(order ? 'Pedido actualizado exitosamente' : `Pedido creado exitosamente`, 'success');
+      showToast(order ? 'Pedido actualizado exitosamente' : 'Pedido creado exitosamente', 'success');
       setTimeout(() => {
         onOrderAdded();
         onClose();
@@ -372,7 +370,7 @@ const OrderModal: React.FC<OrderModalProps> = ({ isOpen, onClose, onOrderAdded, 
                 type="date"
                 required
                 value={formData.fechaProgramada}
-                onChange={(e) => setFormData({ ...formData, fechaProgramada: e.target.value })}
+                onChange={(e) => handleFechaChange(e.target.value)}
                 style={{
                   width: '100%', padding: '0.75rem', borderRadius: '8px',
                   border: '1px solid #D1D5DB', backgroundColor: '#F9FAFB', color: 'var(--text-primary)'
@@ -422,7 +420,7 @@ const OrderModal: React.FC<OrderModalProps> = ({ isOpen, onClose, onOrderAdded, 
                     {productos.filter(p => !selectedProducts.find(sp => sp.producto.idProducto === p.idProducto))
                       .map((producto) => (
                         <option key={producto.idProducto} value={String(producto.idProducto || '')}>
-                          {producto.nombre} - ₡{producto.precio}
+                          {producto.nombre} - ₡{producto.precio} (disp. {producto.disponible})
                         </option>
                       ))}
                   </select>
@@ -438,49 +436,59 @@ const OrderModal: React.FC<OrderModalProps> = ({ isOpen, onClose, onOrderAdded, 
                 }}>
                   <h4 style={{ margin: '0 0 1rem 0', color: 'var(--text-primary)', flexShrink: 0 }}>Productos Seleccionados:</h4>
                   <div style={{ flex: 1, overflowY: 'auto', marginBottom: '1rem' }}>
-                    {selectedProducts.map((item, index) => (
-                      <div key={index} style={{
-                        display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto',
-                        gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem',
-                        padding: '0.5rem', backgroundColor: '#FFFFFF', borderRadius: '6px',
-                        border: '1px solid #E5E7EB'
-                      }}>
-                        <span style={{ color: 'var(--text-primary)' }}>{item.producto.nombre}</span>
-                        {/* Input Cantidad */}
-                        <input
-                          type="number"
-                          min="1"
-                          value={item.cantidad}
-                          onChange={(e) => updateProductQuantity(item.producto.idProducto, parseInt(e.target.value) || 1)}
-                          style={{
-                            padding: '0.25rem', borderRadius: '4px', border: '1px solid #D1D5DB',
-                            backgroundColor: '#FFFFFF', color: 'var(--text-primary)', width: '60px'
-                          }}
-                        />
-                        {/* Input Precio */}
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={item.precio}
-                          onChange={(e) => updateProductPrice(item.producto.idProducto, parseFloat(e.target.value) || 0)}
-                          style={{
-                            padding: '0.25rem', borderRadius: '4px', border: '1px solid #D1D5DB',
-                            backgroundColor: '#FFFFFF', color: 'var(--text-primary)', width: '80px'
-                          }}
-                        />
-                        {/* Botón Eliminar */}
-                        <button
-                          type="button"
-                          onClick={() => removeProduct(item.producto.idProducto)}
-                          style={{
-                            padding: '0.25rem 0.5rem', backgroundColor: 'var(--color-danger)',
-                            color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem'
-                          }}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
+                    {selectedProducts.map((item, index) => {
+                      const excede = item.cantidad > item.producto.disponible;
+                      return (
+                        <div key={index} style={{
+                          display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto',
+                          gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem',
+                          padding: '0.5rem', backgroundColor: '#FFFFFF', borderRadius: '6px',
+                          border: `1px solid ${excede ? '#fcd34d' : '#E5E7EB'}`
+                        }}>
+                          <div>
+                            <span style={{ color: 'var(--text-primary)' }}>{item.producto.nombre}</span>
+                            <div style={{ fontSize: '0.75rem', color: excede ? '#b45309' : 'var(--text-secondary)' }}>
+                              {excede
+                                ? `Hay ${item.producto.disponible}: falta hornear ${item.cantidad - item.producto.disponible}`
+                                : `Disponible: ${item.producto.disponible}`}
+                            </div>
+                          </div>
+                          {/* Input Cantidad */}
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.cantidad}
+                            onChange={(e) => updateProductQuantity(item.producto.idProducto, parseInt(e.target.value) || 1)}
+                            style={{
+                              padding: '0.25rem', borderRadius: '4px', border: '1px solid #D1D5DB',
+                              backgroundColor: '#FFFFFF', color: 'var(--text-primary)', width: '60px'
+                            }}
+                          />
+                          {/* Input Precio */}
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={item.precio}
+                            onChange={(e) => updateProductPrice(item.producto.idProducto, parseFloat(e.target.value) || 0)}
+                            style={{
+                              padding: '0.25rem', borderRadius: '4px', border: '1px solid #D1D5DB',
+                              backgroundColor: '#FFFFFF', color: 'var(--text-primary)', width: '80px'
+                            }}
+                          />
+                          {/* Botón Eliminar */}
+                          <button
+                            type="button"
+                            onClick={() => removeProduct(item.producto.idProducto)}
+                            style={{
+                              padding: '0.25rem 0.5rem', backgroundColor: 'var(--color-danger)',
+                              color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem'
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                   {/* Total Calculado */}
                   <div style={{
@@ -496,12 +504,26 @@ const OrderModal: React.FC<OrderModalProps> = ({ isOpen, onClose, onOrderAdded, 
           </div>
 
           <div style={{
-            padding: '1rem', backgroundColor: '#F3F4F6', borderRadius: '8px',
-            border: '1px solid #E5E7EB', flexShrink: 0
+            padding: '1rem',
+            backgroundColor: lineasQueExceden.length > 0 ? '#fffbeb' : '#F3F4F6',
+            borderRadius: '8px',
+            border: `1px solid ${lineasQueExceden.length > 0 ? '#fcd34d' : '#E5E7EB'}`,
+            flexShrink: 0
           }}>
-            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-              <strong>Nota:</strong> {order ? 'Modifica la información del pedido.' : 'Selecciona los productos y cantidades para el pedido. El total se calculará automáticamente.'}
-            </p>
+            {lineasQueExceden.length > 0 ? (
+              <p style={{ margin: 0, color: '#92400e', fontSize: '0.9rem' }}>
+                <strong>Ojo:</strong> {lineasQueExceden.length === 1 ? 'un producto supera' : `${lineasQueExceden.length} productos superan`} lo
+                que hay disponible.{' '}
+                {esParaHoy
+                  ? 'Como el pedido es para hoy, cocina tendrá que hornear antes de poder alistarlo.'
+                  : 'Para una fecha futura es normal: se hornea ese día. El pedido se puede registrar igual.'}
+              </p>
+            ) : (
+              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                <strong>Nota:</strong> el stock se descuenta cuando cocina toma el pedido, no ahora.
+                Lo que se muestra como disponible ya descuenta lo comprometido en otros pedidos pendientes.
+              </p>
+            )}
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem', flexShrink: 0 }}>

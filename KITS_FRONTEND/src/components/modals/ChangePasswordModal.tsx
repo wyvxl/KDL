@@ -1,32 +1,47 @@
 import React, { useState } from 'react';
 import { usuarioService } from '../../services/usuarioService';
-import type { CambiarContrasenaRequest } from '../../pages/users';
+import { authService } from '../../services/authService';
+import { mensajeDeError } from '../../utils/errorHandler';
 
 interface ChangePasswordModalProps {
   isOpen: boolean;        // Controla la visibilidad del modal
   onClose: () => void;    // Acción al cerrar
   onSuccess: () => void;  // Callback tras cambio exitoso
-  nombreUsuario: string;  // Usuario al que se le cambiará la contraseña
+  /**
+   * 'propia': el usuario cambia la suya y debe confirmar la contraseña actual.
+   * 'admin': un administrador restablece la de otro, sin pedir la actual.
+   */
+  modo: 'propia' | 'admin';
+  /** Usuario objetivo. Solo se usa en modo 'admin'; en 'propia' sale del token. */
+  nombreUsuario?: string;
 }
 
+const FORM_VACIO = { contrasenaActual: '', nuevaContrasena: '', confirmarContrasena: '' };
+
 /**
- * Modal para cambio de contraseña de usuario.
- * Permite ingresar nueva contraseña y su confirmación.
+ * Modal de cambio de contraseña.
+ *
+ * Cubre los dos casos: que cualquier usuario cambie la suya (pidiéndole la actual como
+ * confirmación) y que un administrador restablezca la de otro.
  */
 const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
+  modo,
   nombreUsuario
 }) => {
   // Estado local para los campos del formulario
-  const [formData, setFormData] = useState({
-    nuevaContrasena: '',
-    confirmarContrasena: ''
-  });
+  const [formData, setFormData] = useState(FORM_VACIO);
 
   const [loading, setLoading] = useState(false); // Indicador de carga
   const [error, setError] = useState('');        // Mensajes de error
+
+  const esPropia = modo === 'propia';
+  // En modo propio el usuario es el de la sesión; solo se muestra, no se envía.
+  const usuarioMostrado = esPropia
+    ? (authService.getCurrentUser()?.nombreUsuario ?? '')
+    : (nombreUsuario ?? '');
 
   // Manejo del envío del formulario
   const handleSubmit = async (e: React.FormEvent) => {
@@ -47,20 +62,26 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
 
     try {
       setLoading(true);
-      const request: CambiarContrasenaRequest = {
-        nombreUsuario,
-        nuevaContrasena: formData.nuevaContrasena
-      };
 
-      // Llamada al servicio
-      await usuarioService.cambiarContrasena(request);
+      if (esPropia) {
+        await usuarioService.cambiarMiContrasena({
+          contrasenaActual: formData.contrasenaActual,
+          nuevaContrasena: formData.nuevaContrasena
+        });
+      } else {
+        await usuarioService.cambiarContrasena({
+          nombreUsuario: usuarioMostrado,
+          nuevaContrasena: formData.nuevaContrasena
+        });
+      }
 
+      setFormData(FORM_VACIO); // Resetear form
       onSuccess(); // Notificar éxito al componente padre
       onClose();   // Cerrar modal
-      setFormData({ nuevaContrasena: '', confirmarContrasena: '' }); // Resetear form
     } catch (error) {
       console.error('Error al cambiar contraseña:', error);
-      setError('Error al cambiar la contraseña. Verifique que el servicio esté activo.');
+      // El backend responde 400 con el motivo cuando la contraseña actual no coincide.
+      setError(mensajeDeError(error, 'Error al cambiar la contraseña. Verifique que el servicio esté activo.'));
     } finally {
       setLoading(false);
     }
@@ -78,7 +99,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
 
   // Reset del formulario al cerrar
   const handleClose = () => {
-    setFormData({ nuevaContrasena: '', confirmarContrasena: '' });
+    setFormData(FORM_VACIO);
     setError('');
     onClose();
   };
@@ -103,7 +124,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
           display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem'
         }}>
           <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--color-text)' }}>
-            Cambiar Contraseña
+            {esPropia ? 'Cambiar mi Contraseña' : 'Restablecer Contraseña'}
           </h2>
           <button
             onClick={handleClose}
@@ -128,7 +149,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
             </label>
             <input
               type="text"
-              value={nombreUsuario}
+              value={usuarioMostrado}
               disabled
               style={{
                 width: '100%', padding: '0.75rem', border: '1px solid var(--border-color)',
@@ -136,6 +157,29 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
               }}
             />
           </div>
+
+          {/* Contraseña Actual: solo al cambiar la propia, como confirmación de identidad */}
+          {esPropia && (
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{
+                display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text)'
+              }}>
+                Contraseña Actual:
+              </label>
+              <input
+                type="password"
+                name="contrasenaActual"
+                value={formData.contrasenaActual}
+                onChange={handleChange}
+                required
+                autoComplete="current-password"
+                style={{
+                  width: '100%', padding: '0.75rem', border: '1px solid var(--border-color)',
+                  borderRadius: '8px', fontSize: '1rem'
+                }}
+              />
+            </div>
+          )}
 
           {/* Nueva Contraseña */}
           <div style={{ marginBottom: '1rem' }}>

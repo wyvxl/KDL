@@ -1,5 +1,5 @@
 import api from './api';
-import type { Usuario, CambiarContrasenaRequest } from '../pages/users';
+import type { Usuario, CambiarContrasenaRequest, CambiarMiContrasenaRequest } from '../pages/users';
 
 /**
  * Servicio para gestión de Usuarios del sistema.
@@ -24,7 +24,21 @@ const usuarioService = {
     },
 
     /**
-     * Cambia la contraseña de un usuario específico.
+     * Cambia la contraseña del usuario de la sesión actual.
+     *
+     * Disponible para cualquier rol. Exige la contraseña actual como confirmación; si
+     * no coincide, el backend responde 400 con el motivo.
+     *
+     * @param request Contraseña actual y nueva
+     */
+    cambiarMiContrasena: async (request: CambiarMiContrasenaRequest): Promise<void> => {
+        await api.put('/usuario/mi-contrasena', request);
+    },
+
+    /**
+     * Restablece la contraseña de otro usuario, sin pedir la actual.
+     * Solo administradores. Para la propia, usar `cambiarMiContrasena`.
+     *
      * @param request Datos necesarios (usuario y nueva contraseña)
      */
     cambiarContrasena: async (request: CambiarContrasenaRequest): Promise<void> => {
