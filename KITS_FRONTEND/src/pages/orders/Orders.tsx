@@ -4,16 +4,18 @@ import type { Pedido, DetallePedido } from './';
 import { OrderModal, ConfirmModal } from '../../components/modals';
 // Importamos icono Truck para mostrar en los estados de entrega
 import { Truck, Trash2 } from 'lucide-react';
-import { authService } from '../../services/authService';
+import { PERMISOS, tienePermiso } from '../../utils/permisos';
+import { mensajeDeError } from '../../utils/errorHandler';
 import { useToast } from '../../hooks/useToast';
 import Toast from '../../components/ui/Toast';
 import './Orders.css';
 
 // Componente de página para gestión de Pedidos
 const Orders: React.FC = () => {
-    // Obtenemos el usuario y verificamos si es Repartidor para limitar acciones
-    const user = authService.getCurrentUser();
-    const isRepartidor = user?.idRol === 2; // ID 2 = Rol Repartidor
+    // Qué puede hacer el usuario se decide por permisos, no por id de rol:
+    // el vendedor toma y cobra pedidos, cocina y reparto los avanzan de estado.
+    const puedeGestionar = tienePermiso(PERMISOS.GESTIONAR_PEDIDOS);
+    const puedeAvanzar = tienePermiso(PERMISOS.AVANZAR_PEDIDOS);
 
     // Estados para almacenar datos, carga, errores y control de UI
     const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -25,6 +27,8 @@ const Orders: React.FC = () => {
     const [editingOrder, setEditingOrder] = useState<Pedido | null>(null);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [deletingOrderId, setDeletingOrderId] = useState<number | null>(null);
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [cancelingOrderId, setCancelingOrderId] = useState<number | null>(null);
 
 
     // Estados para los filtros de búsqueda
@@ -129,14 +133,47 @@ const Orders: React.FC = () => {
         void loadPedidos();
     };
 
-    // Función para actualizar el estado de un pedido (ej: Pendiente -> En Proceso)
+    /**
+     * Avanza el estado de un pedido (ej: Pendiente -> En Proceso).
+     *
+     * Al pasar a EN_PROCESO el backend descuenta el stock de los productos: es el
+     * momento en que salen del inventario. Si no alcanza, el cambio se rechaza y aquí
+     * se muestra qué producto faltó.
+     *
+     * El backend registra al usuario de la sesión como responsable, tomándolo del token.
+     */
     const handleUpdateStatus = async (pedidoId: number, nuevoEstado: string) => {
         try {
             await pedidoService.actualizarEstado(pedidoId, nuevoEstado);
             void loadPedidos(); // Recargar lista para reflejar cambios
         } catch (error) {
             console.error('Error al actualizar estado:', error);
-            showToast('Error al actualizar el estado del pedido', 'error');
+            showToast(mensajeDeError(error, 'Error al actualizar el estado del pedido'), 'error');
+        }
+    };
+
+    // Abre el modal de confirmación para cancelar un pedido
+    const handleCancelOrder = (pedidoId: number) => {
+        setCancelingOrderId(pedidoId);
+        setShowCancelModal(true);
+    };
+
+    /**
+     * Cancela el pedido. Si cocina ya lo había tomado, el backend devuelve sus
+     * productos al inventario.
+     */
+    const confirmCancel = async () => {
+        if (!cancelingOrderId) return;
+        try {
+            await pedidoService.actualizarEstado(cancelingOrderId, 'CANCELADO');
+            void loadPedidos();
+            showToast('Pedido cancelado. El stock reservado volvió al inventario.', 'success');
+        } catch (error) {
+            console.error('Error al cancelar pedido:', error);
+            showToast(mensajeDeError(error, 'Error al cancelar el pedido'), 'error');
+        } finally {
+            setShowCancelModal(false);
+            setCancelingOrderId(null);
         }
     };
 
@@ -168,7 +205,7 @@ const Orders: React.FC = () => {
                 showToast('Pedido eliminado exitosamente', 'success');
             } catch (error) {
                 console.error('Error al eliminar pedido:', error);
-                showToast('Error al eliminar el pedido', 'error');
+                showToast(mensajeDeError(error, 'Error al eliminar el pedido'), 'error');
             } finally {
                 setShowConfirmModal(false);
                 setDeletingOrderId(null);
@@ -262,8 +299,8 @@ const Orders: React.FC = () => {
                         </svg>
                     </button>
                 </div>
-                {/* Botón Nuevo Pedido: Oculto para Repartidores */}
-                {!isRepartidor && (
+                {/* Botón Nuevo Pedido: solo quien toma pedidos (vendedor/admin) */}
+                {puedeGestionar && (
                     <button
                         className="btn btn-primary"
                         onClick={handleNewOrder}
@@ -304,6 +341,7 @@ const Orders: React.FC = () => {
                             <option value="EN_PROCESO">En Proceso</option>
                             <option value="LISTO">Listo</option>
                             <option value="ENTREGADO">Entregado</option>
+                            <option value="CANCELADO">Cancelado</option>
                         </select>
                     </div>
 
@@ -513,8 +551,8 @@ const Orders: React.FC = () => {
 
                                 <div className="order-footer">
                                     <div className="order-actions">
-                                        {/* Botón Marcar Pagado: Visible si no está pagado y no es repartidor */}
-                                        {!pedido.pagado && !isRepartidor && (
+                                        {/* Cobrar: lo hace quien atiende al cliente */}
+                                        {!pedido.pagado && pedido.estado !== 'CANCELADO' && puedeGestionar && (
                                             <button
                                                 className="btn btn-secondary"
                                                 onClick={() => handleMarcarPagado(pedido.idPedido!)}
@@ -523,16 +561,19 @@ const Orders: React.FC = () => {
                                             </button>
                                         )}
 
-                                        {/* Botones de Cambio de Estado: Disponibles para todos los roles con permisos */}
-                                        {pedido.estado === 'PENDIENTE' && (
+                                        {/* Avance de estado: cocina y reparto.
+                                            "Procesar" es el momento en que los productos salen del
+                                            inventario, sin importar para qué día sea el pedido. */}
+                                        {puedeAvanzar && pedido.estado === 'PENDIENTE' && (
                                             <button
                                                 className="btn btn-primary"
                                                 onClick={() => handleUpdateStatus(pedido.idPedido!, 'EN_PROCESO')}
+                                                title="Cocina toma el pedido y descuenta el stock"
                                             >
                                                 Procesar
                                             </button>
                                         )}
-                                        {pedido.estado === 'EN_PROCESO' && (
+                                        {puedeAvanzar && pedido.estado === 'EN_PROCESO' && (
                                             <button
                                                 className="btn btn-primary"
                                                 onClick={() => handleUpdateStatus(pedido.idPedido!, 'LISTO')}
@@ -540,7 +581,7 @@ const Orders: React.FC = () => {
                                                 Marcar Listo
                                             </button>
                                         )}
-                                        {pedido.estado === 'LISTO' && (
+                                        {puedeAvanzar && pedido.estado === 'LISTO' && (
                                             <button
                                                 className="btn btn-primary"
                                                 onClick={() => handleUpdateStatus(pedido.idPedido!, 'ENTREGADO')}
@@ -549,12 +590,10 @@ const Orders: React.FC = () => {
                                             </button>
                                         )}
 
-                                        {/* Botón Editar:
-                                            - Oculto si el estado es ENTREGADO
-                                            - Oculto si el usuario es REPARTIDOR
-                                            - Oculto si el pedido ya está PAGADO
-                                        */}
-                                        {pedido.estado !== 'ENTREGADO' && !isRepartidor && !pedido.pagado && (
+                                        {/* Editar: solo mientras siga PENDIENTE. Después sus productos ya
+                                            salieron del inventario y cambiar las líneas descuadraría el stock
+                                            (el backend lo rechaza con ORA-20003). */}
+                                        {pedido.estado === 'PENDIENTE' && puedeGestionar && !pedido.pagado && (
                                             <button
                                                 className="btn btn-secondary"
                                                 onClick={() => handleEditOrder(pedido)}
@@ -563,11 +602,21 @@ const Orders: React.FC = () => {
                                             </button>
                                         )}
 
-                                        {/* Botón Eliminar:
-                                                - Oculto si el estado es ENTREGADO (ya se completó)
-                                                - Oculto si el usuario es REPARTIDOR
-                                            */}
-                                        {pedido.estado !== 'ENTREGADO' && !isRepartidor && (
+                                        {/* Cancelar: conserva el pedido en el historial y devuelve al
+                                            inventario lo que cocina ya hubiera tomado. */}
+                                        {pedido.estado !== 'ENTREGADO' && pedido.estado !== 'CANCELADO' && puedeGestionar && (
+                                            <button
+                                                className="btn btn-secondary"
+                                                onClick={() => handleCancelOrder(pedido.idPedido!)}
+                                                title="Cancelar Pedido"
+                                            >
+                                                Cancelar
+                                            </button>
+                                        )}
+
+                                        {/* Eliminar: borra el pedido del sistema. Para el día a día se
+                                            prefiere Cancelar, que deja rastro. */}
+                                        {pedido.estado !== 'ENTREGADO' && puedeGestionar && (
                                             <button
                                                 className="btn btn-danger"
                                                 onClick={() => handleDeleteOrder(pedido.idPedido!)}
@@ -599,7 +648,20 @@ const Orders: React.FC = () => {
                 onConfirm={confirmDelete}
                 title="Confirmar Eliminación"
             >
-                ¿Estás seguro de que deseas eliminar este pedido? Esta acción restaurará el stock y no se puede deshacer.
+                ¿Estás seguro de que deseas eliminar este pedido? Se devolverá al inventario el stock
+                que cocina ya hubiera tomado y no se puede deshacer. Si solo querés anularlo dejando
+                el registro, usá "Cancelar".
+            </ConfirmModal>
+
+            {/* Modal de Confirmación para Cancelar */}
+            <ConfirmModal
+                isOpen={showCancelModal}
+                onClose={() => setShowCancelModal(false)}
+                onConfirm={confirmCancel}
+                title="Confirmar Cancelación"
+            >
+                ¿Cancelar este pedido? Queda registrado como CANCELADO y, si cocina ya lo había
+                tomado, sus productos vuelven al inventario.
             </ConfirmModal>
 
             {toast && (

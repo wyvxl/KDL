@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { productoService } from '../../services/productoService';
 import type { Producto } from './';
 import { ProductModal, StockAdjustmentModal } from '../../components/modals';
+import { PERMISOS, tienePermiso } from '../../utils/permisos';
 import { AlertTriangle } from 'lucide-react';
 import './Products.css';
 
@@ -10,6 +11,9 @@ import './Products.css';
  * Permite listar, crear, editar y ajustar el stock de productos.
  */
 const Products: React.FC = () => {
+    // Crear productos y mover inventario es de cocina; el vendedor solo consulta.
+    const puedeGestionar = tienePermiso(PERMISOS.GESTIONAR_PRODUCTOS);
+
     // Estados de datos y carga
     const [productos, setProductos] = useState<Producto[]>([]);
     const [loading, setLoading] = useState(true);
@@ -135,13 +139,15 @@ const Products: React.FC = () => {
                         </svg>
                     </button>
                 </div>
-                {/* Nuevo Producto */}
-                <button
-                    className="btn btn-primary"
-                    onClick={handleNewProduct}
-                >
-                    + Nuevo Producto
-                </button>
+                {/* Nuevo Producto: solo cocina/admin */}
+                {puedeGestionar && (
+                    <button
+                        className="btn btn-primary"
+                        onClick={handleNewProduct}
+                    >
+                        + Nuevo Producto
+                    </button>
+                )}
             </div>
 
             {/* Barra de Búsqueda y Filtros */}
@@ -245,23 +251,25 @@ const Products: React.FC = () => {
                                     <span>Unidad: {producto.unidadMedida}</span>
                                 </div>
                             </div>
-                            <div className="product-actions">
-                                <button
-                                    className="btn btn-secondary"
-                                    onClick={() => handleOpenStockModal(producto)}
-                                    title="Ajustar Stock"
-                                    style={{ flex: 1 }}
-                                >
-                                    +/- Stock
-                                </button>
-                                <button
-                                    className="btn btn-secondary"
-                                    onClick={() => handleEditProduct(producto)}
-                                    style={{ flex: 1 }}
-                                >
-                                    Editar
-                                </button>
-                            </div>
+                            {puedeGestionar && (
+                                <div className="product-actions">
+                                    <button
+                                        className="btn btn-secondary"
+                                        onClick={() => handleOpenStockModal(producto)}
+                                        title="Ajustar Stock"
+                                        style={{ flex: 1 }}
+                                    >
+                                        +/- Stock
+                                    </button>
+                                    <button
+                                        className="btn btn-secondary"
+                                        onClick={() => handleEditProduct(producto)}
+                                        style={{ flex: 1 }}
+                                    >
+                                        Editar
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     ))
                 )}

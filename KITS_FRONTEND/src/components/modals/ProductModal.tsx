@@ -89,31 +89,20 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onProductA
       }
 
       // Validar resultado del servicio
-      if (result && typeof result === 'number' && result > 0) {
-        showToast(product ? 'Producto actualizado exitosamente' : `Producto creado exitosamente`, 'success');
-        setTimeout(() => {
-          onProductAdded();
-          onClose();
-        }, 1500);
-      } else {
+      if (!result || typeof result !== 'number' || result <= 0) {
         showToast('Error: El producto no se pudo guardar', 'error');
         setLoading(false);
         return;
       }
 
-      onProductAdded(); // Refrescar tabla padre
-      onClose();        // Cerrar modal
-
-      // Limpiar datos
-      setFormData({
-        nombre: '',
-        descripcion: '',
-        precio: '',
-        stockActual: '',
-        stockMinimo: '',
-        unidadMedida: '',
-        activo: 'S'
-      });
+      // El cierre va dentro del timeout para que dé tiempo de ver el toast: el modal
+      // contiene al propio Toast, así que cerrarlo aquí mismo lo desmontaría antes de
+      // que se llegara a mostrar (y refrescaría la tabla dos veces).
+      showToast(product ? 'Producto actualizado exitosamente' : 'Producto creado exitosamente', 'success');
+      setTimeout(() => {
+        onProductAdded(); // Refrescar tabla padre
+        onClose();        // Cerrar modal
+      }, 1500);
     } catch (error) {
       console.error('Error saving product:', error);
       let errorMessage = 'Error desconocido';

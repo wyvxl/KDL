@@ -40,6 +40,12 @@ CREATE OR REPLACE PACKAGE PKG_PEDIDOS AS
         p_id  IN NUMBER,
         p_res OUT NUMBER
     );
+
+    -- Parte de producción de cocina para una fecha
+    PROCEDURE sp_op_produccion_requerida(
+        p_fecha IN DATE,
+        p_res   OUT SYS_REFCURSOR
+    );
 END PKG_PEDIDOS;
 /
 
@@ -114,6 +120,12 @@ CREATE OR REPLACE PACKAGE BODY PKG_PEDIDOS AS
             p_res := -1;
             RAISE;
     END;
-    
+
+    --sp_produccion_requerida
+    PROCEDURE sp_op_produccion_requerida(p_fecha IN DATE, p_res OUT SYS_REFCURSOR) IS
+    BEGIN
+        sp_produccion_requerida(p_fecha, p_res);
+    END;
+
 END PKG_PEDIDOS;
 /

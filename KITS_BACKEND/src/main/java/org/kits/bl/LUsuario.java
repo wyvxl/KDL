@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -43,7 +44,7 @@ public class LUsuario extends Operations {
             Map<String, Object> row = result.getFirst();
             Usuario u = mapRowToUsuario(row);
 
-            u.setPermisos(obtenerPermisosPorRol(u.getRol().getIdRol()));
+            u.setPermisos(obtenerPermisosPorRol(u.getNombreRol()));
 
             return u;
         }
@@ -99,9 +100,15 @@ public class LUsuario extends Operations {
      * @return ID del usuario creado/actualizado
      */
     public int Guardar(Usuario usuario) {
+        if (usuario.getIdRol() == null) {
+            throw new IllegalArgumentException("El rol del usuario es requerido");
+        }
+
         var parameters = new ArrayList<Parameter<?>>();
+        // p_id nulo le indica al procedimiento que es un alta (INSERT); con un valor
+        // hace UPDATE. Por eso el frontend manda null y no 0 para un usuario nuevo.
         parameters.add(new Parameter<>("p_id", usuario.getIdUsuario(), Types.NUMERIC));
-        parameters.add(new Parameter<>("p_rol", usuario.getRol().getIdRol(), Types.NUMERIC));
+        parameters.add(new Parameter<>("p_rol", usuario.getIdRol(), Types.NUMERIC));
         parameters.add(new Parameter<>("p_user", usuario.getNombreUsuario(), Types.VARCHAR));
         parameters.add(new Parameter<>("p_pass", usuario.getContrasena(), Types.VARCHAR));
         parameters.add(new Parameter<>("p_mail", usuario.getEmail(), Types.VARCHAR));
@@ -112,7 +119,32 @@ public class LUsuario extends Operations {
     }
 
     /**
-     * Cambia la contraseña de un usuario.
+     * Cambia la contraseña del propio usuario, verificando primero la actual.
+     *
+     * <p>Se reutiliza {@link #Autenticar} para comprobarla, de forma que la validación
+     * sea exactamente la misma que en el login (incluido que la cuenta siga activa).
+     * Como efecto de eso, confirmar la contraseña actual también actualiza
+     * {@code ultimo_acceso}: el usuario acaba de acreditar su identidad, así que
+     * contarlo como un acceso es razonable.</p>
+     *
+     * @param nombreUsuario    Usuario que hace el cambio (viene del token, no del cuerpo)
+     * @param contrasenaActual Contraseña vigente, para confirmar que es quien dice ser
+     * @param nuevaContrasena  Nueva contraseña
+     * @return true si la contraseña actual era correcta y se cambió; false en caso contrario
+     */
+    public boolean CambiarContrasenaPropia(String nombreUsuario, String contrasenaActual, String nuevaContrasena) {
+        if (Autenticar(nombreUsuario, contrasenaActual) == null) {
+            return false;
+        }
+        CambiarContrasena(nombreUsuario, nuevaContrasena);
+        return true;
+    }
+
+    /**
+     * Cambia la contraseña de un usuario sin pedir la actual.
+     *
+     * <p>Es el restablecimiento que hace un administrador. Para que un usuario cambie la
+     * suya propia, usar {@link #CambiarContrasenaPropia}.</p>
      *
      * @param nombreUsuario   Usuario al que cambiar contraseña
      * @param nuevaContrasena Nueva contraseña
@@ -154,28 +186,57 @@ public class LUsuario extends Operations {
     }
 
     /**
-     * Obtiene los permisos según el rol del usuario.
-     * 
-     * @param idRol ID del rol (1: Admin, 2: Repartidor, 3: Panadero, 4: Pruebas)
-     * @return Lista de permisos
+     * Obtiene los permisos de UI según el rol del usuario.
+     *
+     * <p>Se resuelve por nombre de rol y no por id: los ids de ROLES son
+     * {@code GENERATED ALWAYS AS IDENTITY} y se desplazan al recargar la base o al crear
+     * roles nuevos. Debe mantenerse alineado con las reglas de
+     * {@code SecurityConfig}, que es quien realmente autoriza; esta lista solo decide
+     * qué ve el usuario en pantalla.</p>
+     *
+     * @param nombreRol Nombre del rol (ADMIN, VENDEDOR, PANADERO, REPARTIDOR)
+     * @return Lista de códigos de permiso
      */
-    private List<String> obtenerPermisosPorRol(int idRol) {
+    private List<String> obtenerPermisosPorRol(String nombreRol) {
         List<String> permisos = new ArrayList<>();
+        // Todo usuario autenticado ve su tablero y los pedidos.
         permisos.add("VER_DASHBOARD");
-        
-        if (idRol == 1 || idRol == 4) { // Admins
-            permisos.add("VER_PRODUCTOS");
-            permisos.add("VER_CLIENTES");
-            permisos.add("VER_PEDIDOS");
-            permisos.add("VER_USUARIOS");
-            permisos.add("GESTIONAR_TODO");
-        } else if (idRol == 2) { // Repartidor
-            permisos.add("VER_PEDIDOS");
-        } else if (idRol == 3) { // Panadero
-            permisos.add("VER_PEDIDOS");
-            permisos.add("VER_PRODUCTOS");
+        permisos.add("VER_PEDIDOS");
+
+        String rol = nombreRol == null ? "" : nombreRol.trim().toUpperCase(Locale.ROOT);
+
+        switch (rol) {
+            case "ADMIN" -> {
+                permisos.add("VER_CLIENTES");
+                permisos.add("VER_PRODUCTOS");
+                permisos.add("VER_USUARIOS");
+                permisos.add("VER_PRODUCCION");
+                permisos.add("GESTIONAR_PEDIDOS");
+                permisos.add("AVANZAR_PEDIDOS");
+                permisos.add("GESTIONAR_PRODUCTOS");
+                // Comodín que el frontend interpreta como "puede todo".
+                permisos.add("GESTIONAR_TODO");
+            }
+            // Toma los pedidos por teléfono/redes: necesita clientes y catálogo.
+            case "VENDEDOR" -> {
+                permisos.add("VER_CLIENTES");
+                permisos.add("VER_PRODUCTOS");
+                permisos.add("GESTIONAR_PEDIDOS");
+            }
+            // Cocina: alista pedidos y repone inventario, no los crea.
+            case "PANADERO" -> {
+                permisos.add("VER_PRODUCTOS");
+                permisos.add("VER_PRODUCCION");
+                permisos.add("AVANZAR_PEDIDOS");
+                permisos.add("GESTIONAR_PRODUCTOS");
+            }
+            // Reparto: solo consulta pedidos y los avanza hasta entregado.
+            case "REPARTIDOR" -> permisos.add("AVANZAR_PEDIDOS");
+            default -> {
+                // Rol desconocido (creado desde POST /rol): sin permisos adicionales.
+            }
         }
-        
+
         return permisos;
     }
 
@@ -201,6 +262,7 @@ public class LUsuario extends Operations {
         u.setEmail((String) row.get("email"));
         u.setNombreCompleto((String) row.get("nombre_completo"));
         u.setActivo((String) row.get("activo"));
+        u.setUltimoAcceso(toDate(row.get("ultimo_acceso")));
         return u;
     }
 }

@@ -13,6 +13,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Filtro que extrae el token JWT del encabezado Authorization (Bearer),
@@ -38,11 +39,21 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             String token = header.substring(BEARER_PREFIX.length());
             try {
                 Claims claims = jwtUtil.parseToken(token);
-                String usuario = claims.getSubject();
-                int idRol = claims.get("idRol") != null ? ((Number) claims.get("idRol")).intValue() : 0;
-                var authorities = List.of(new SimpleGrantedAuthority(rolAAuthority(idRol)));
-                var authentication = new UsernamePasswordAuthenticationToken(usuario, null, authorities);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                String authority = rolAAuthority(claims.get("rol", String.class));
+                Object idUsuario = claims.get("idUsuario");
+
+                if (authority == null || !(idUsuario instanceof Number id)) {
+                    // Token incompleto (p. ej. emitido por una versión anterior). Se deja
+                    // sin autenticar para que devuelva 401 y el frontend cierre sesión.
+                    SecurityContextHolder.clearContext();
+                } else {
+                    // El principal lleva el id además del nombre: los controladores lo usan
+                    // para registrar quién hace cada operación, en vez de creerle al cuerpo.
+                    var principal = new UsuarioAutenticado(id.intValue(), claims.getSubject());
+                    var authorities = List.of(new SimpleGrantedAuthority(authority));
+                    var authentication = new UsernamePasswordAuthenticationToken(principal, null, authorities);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
             } catch (JwtException | IllegalArgumentException | ClassCastException e) {
                 // Token inválido/expirado: se limpia el contexto y se sigue sin autenticación.
                 SecurityContextHolder.clearContext();
@@ -52,15 +63,23 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Mapea el id de rol de la BD a una authority de Spring Security.
-     * 1 y 4 son administradores; 2 repartidor; 3 panadero.
+     * Convierte el nombre del rol de la BD (ROLES.nombre_rol) en una authority de Spring Security.
+     *
+     * <p>Se mapea por nombre y no por id porque los ids son {@code GENERATED ALWAYS AS IDENTITY}:
+     * recargar la base o crear un rol nuevo los desplaza y la autorización quedaría mal asignada.</p>
+     *
+     * <p>Un rol que no coincida con ninguna regla de {@link SecurityConfig} solo podrá llegar a los
+     * endpoints públicos, que es el comportamiento seguro por defecto.</p>
+     *
+     * @return la authority, o {@code null} si el token no trae rol.
      */
-    static String rolAAuthority(int idRol) {
-        return switch (idRol) {
-            case 1, 4 -> "ROLE_ADMIN";
-            case 2 -> "ROLE_REPARTIDOR";
-            case 3 -> "ROLE_PANADERO";
-            default -> "ROLE_USER";
-        };
+    static String rolAAuthority(String nombreRol) {
+        if (nombreRol == null || nombreRol.isBlank()) {
+            return null;
+        }
+        String normalizado = nombreRol.trim()
+                .toUpperCase(Locale.ROOT)
+                .replaceAll("[^A-Z0-9]+", "_");
+        return "ROLE_" + normalizado;
     }
 }

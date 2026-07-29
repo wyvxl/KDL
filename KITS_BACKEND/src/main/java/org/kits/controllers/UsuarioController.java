@@ -2,12 +2,14 @@ package org.kits.controllers;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.kits.bl.LUsuario;
 import org.kits.dto.AuthResponse;
 import org.kits.entities.Usuario;
 import org.kits.security.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -68,8 +70,36 @@ public class UsuarioController {
     }
 
     /**
-     * Cambia la contraseña de un usuario.
+     * Cambia la contraseña del usuario de la sesión actual.
+     * PUT /usuario/mi-contrasena
+     *
+     * <p>Disponible para cualquier usuario autenticado, sea cual sea su rol. El usuario
+     * afectado sale del token, nunca del cuerpo de la petición: así nadie puede cambiar
+     * la contraseña de otro por esta vía. Se exige la contraseña actual como
+     * confirmación.</p>
+     *
+     * @return 200 si se cambió; 400 con el motivo si la contraseña actual no es correcta.
+     */
+    @PutMapping("mi-contrasena")
+    public ResponseEntity<Void> CambiarMiContrasena(@Valid @RequestBody CambiarMiContrasenaRequest request,
+                                                    Authentication authentication) {
+        boolean cambiada = this.logica.CambiarContrasenaPropia(
+                authentication.getName(), request.getContrasenaActual(), request.getNuevaContrasena());
+
+        if (!cambiada) {
+            // 400 y no 401: un 401 haría que el interceptor del frontend cerrara la
+            // sesión, y aquí lo único que pasa es que se equivocó al teclear.
+            throw new IllegalArgumentException("La contraseña actual no es correcta");
+        }
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Restablece la contraseña de un usuario, sin pedir la actual.
      * PUT /usuario/cambiar-contrasena
+     *
+     * <p>Operación de administrador (ver {@code SecurityConfig}). Para que un usuario
+     * cambie la suya, existe {@code PUT /usuario/mi-contrasena}.</p>
      */
     @PutMapping("cambiar-contrasena")
     public ResponseEntity<Void> CambiarContrasena(@Valid @RequestBody CambiarContrasenaRequest request) {
@@ -119,10 +149,37 @@ public class UsuarioController {
         }
     }
 
+    /** Cuerpo para que un usuario cambie su propia contraseña. El usuario sale del token. */
+    public static class CambiarMiContrasenaRequest {
+        @NotBlank(message = "La contraseña actual es requerida")
+        private String contrasenaActual;
+        @NotBlank(message = "La nueva contraseña es requerida")
+        @Size(min = 6, message = "La nueva contraseña debe tener al menos 6 caracteres")
+        private String nuevaContrasena;
+
+        public String getContrasenaActual() {
+            return contrasenaActual;
+        }
+
+        public void setContrasenaActual(String contrasenaActual) {
+            this.contrasenaActual = contrasenaActual;
+        }
+
+        public String getNuevaContrasena() {
+            return nuevaContrasena;
+        }
+
+        public void setNuevaContrasena(String nuevaContrasena) {
+            this.nuevaContrasena = nuevaContrasena;
+        }
+    }
+
+    /** Cuerpo del restablecimiento de contraseña que hace un administrador. */
     public static class CambiarContrasenaRequest {
         @NotBlank(message = "El nombre de usuario es requerido")
         private String nombreUsuario;
         @NotBlank(message = "La nueva contraseña es requerida")
+        @Size(min = 6, message = "La nueva contraseña debe tener al menos 6 caracteres")
         private String nuevaContrasena;
 
         public String getNombreUsuario() {

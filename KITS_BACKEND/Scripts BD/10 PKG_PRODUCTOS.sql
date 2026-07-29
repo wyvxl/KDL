@@ -27,6 +27,13 @@ CREATE OR REPLACE PACKAGE PKG_PRODUCTOS AS
         p_cant IN NUMBER,
         p_mov IN VARCHAR2
     );
+
+    -- Catálogo con stock comprometido y disponible para una fecha (toma de pedidos)
+    PROCEDURE sp_op_disponibilidad(
+        p_fecha IN DATE,
+        p_excluir_pedido IN NUMBER,
+        p_res OUT SYS_REFCURSOR
+    );
 END PKG_PRODUCTOS;
 /
 
@@ -58,6 +65,12 @@ CREATE OR REPLACE PACKAGE BODY PKG_PRODUCTOS AS
     BEGIN
         sp_ajustar_stock(p_id_prod, p_cant, p_mov);
     END;
-    
+
+    --sp_disponibilidad_productos
+    PROCEDURE sp_op_disponibilidad(p_fecha IN DATE, p_excluir_pedido IN NUMBER, p_res OUT SYS_REFCURSOR) IS
+    BEGIN
+        sp_disponibilidad_productos(p_fecha, p_excluir_pedido, p_res);
+    END;
+
 END PKG_PRODUCTOS;
 /

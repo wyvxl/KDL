@@ -2,6 +2,7 @@ package org.kits.bl;
 
 import org.kits.db.ConnectionManager;
 import org.kits.db.Operations;
+import org.kits.dto.DisponibilidadProducto;
 import org.kits.dto.Parameter;
 import org.kits.entities.Producto;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.sql.Types;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -102,8 +104,45 @@ public class LProducto extends Operations {
     }
 
     /**
+     * Catálogo de productos activos con su disponibilidad para una fecha.
+     *
+     * <p>Se usa al tomar un pedido: muestra cuánto hay comprometido en pedidos aún
+     * pendientes para esa fecha y cuánto queda realmente libre.</p>
+     *
+     * @param fecha          Fecha programada del pedido que se está armando
+     * @param excluirPedido  Pedido que se está editando, para que sus propias cantidades
+     *                       no se cuenten como comprometidas contra sí mismo (puede ser null)
+     * @return Lista de productos con stock comprometido y disponible
+     */
+    public List<DisponibilidadProducto> Disponibilidad(LocalDate fecha, Integer excluirPedido) {
+        var parameters = new ArrayList<Parameter<?>>();
+        parameters.add(new Parameter<>("p_fecha", java.sql.Date.valueOf(fecha), Types.DATE));
+        parameters.add(new Parameter<>("p_excluir_pedido", excluirPedido, Types.NUMERIC));
+        parameters.add(createResponseParameter());
+
+        var disponibilidad = new ArrayList<DisponibilidadProducto>();
+        List<Map<String, Object>> result = executeQuery("PKG_PRODUCTOS.sp_op_disponibilidad", parameters);
+        if (result != null) {
+            for (Map<String, Object> row : result) {
+                disponibilidad.add(new DisponibilidadProducto(
+                        toInt(row.get("id_producto")),
+                        (String) row.get("nombre"),
+                        (String) row.get("descripcion"),
+                        toDouble(row.get("precio")),
+                        toInt(row.get("stock_actual")),
+                        toInt(row.get("stock_minimo")),
+                        (String) row.get("unidad_medida"),
+                        (String) row.get("activo"),
+                        toInt(row.get("comprometido")),
+                        toInt(row.get("disponible"))));
+            }
+        }
+        return disponibilidad;
+    }
+
+    /**
      * Ajusta el stock de un producto.
-     * 
+     *
      * @param idProducto ID del producto
      * @param cantidad   Cantidad a ajustar
      * @param movimiento Tipo de movimiento (ENTRADA/SALIDA)

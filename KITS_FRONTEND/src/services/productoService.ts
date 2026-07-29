@@ -1,5 +1,5 @@
 import api from './api';
-import type { Producto, AjusteStock } from '../pages/products';
+import type { Producto, AjusteStock, DisponibilidadProducto } from '../pages/products';
 
 /**
  * Servicio para la gestión de Productos e Inventario.
@@ -26,6 +26,24 @@ export const productoService = {
       console.error('Error al guardar producto:', error);
       throw error;
     }
+  },
+
+  /**
+   * Catálogo con la disponibilidad de cada producto para una fecha.
+   *
+   * Es lo que se consulta al armar un pedido: además del stock físico devuelve cuánto
+   * está comprometido en pedidos pendientes para esa fecha y cuánto queda libre.
+   *
+   * @param fecha         Fecha programada del pedido, en formato 'YYYY-MM-DD'
+   * @param excluirPedido Pedido en edición, para no contarlo contra sí mismo
+   * @returns Promesa con los productos activos y su disponibilidad
+   */
+  disponibilidad: async (fecha: string, excluirPedido?: number | null): Promise<DisponibilidadProducto[]> => {
+    const params: Record<string, string | number> = { fecha };
+    if (excluirPedido) {
+      params.excluirPedido = excluirPedido;
+    }
+    return await api.get('/producto/disponibilidad', { params }) as unknown as DisponibilidadProducto[];
   },
 
   /**
