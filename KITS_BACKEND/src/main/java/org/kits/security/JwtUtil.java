@@ -31,6 +31,11 @@ public class JwtUtil {
     /**
      * Genera un token firmado para el usuario autenticado.
      * El subject es el nombre de usuario y se incluyen claims con id, rol y nombre completo.
+     *
+     * <p>La autorización se decide con el claim {@code rol} (nombre del rol), no con
+     * {@code idRol}: los ids de ROLES son {@code GENERATED ALWAYS AS IDENTITY} y cambian
+     * si se recarga la base o se crean roles nuevos. {@code idRol} se mantiene solo
+     * porque el frontend lo usa para mostrar/ocultar controles.</p>
      */
     public String generarToken(Usuario usuario) {
         Date ahora = new Date();
@@ -39,6 +44,7 @@ public class JwtUtil {
                 .subject(usuario.getNombreUsuario())
                 .claim("idUsuario", usuario.getIdUsuario())
                 .claim("idRol", usuario.getIdRol())
+                .claim("rol", usuario.getNombreRol())
                 .claim("nombreCompleto", usuario.getNombreCompleto())
                 .issuedAt(ahora)
                 .expiration(expiracion)

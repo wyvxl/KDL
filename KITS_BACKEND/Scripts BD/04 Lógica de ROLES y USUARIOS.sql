@@ -62,19 +62,44 @@ END;
 /
 
 -- Autenticar Usuario
+--
+-- Además de validar las credenciales, deja registrado el acceso en ultimo_acceso.
+-- Tiene que hacerse aquí y no en un trigger: autenticarse es un SELECT, así que un
+-- trigger de UPDATE nunca se enteraba de los logins (y en cambio se disparaba con
+-- cualquier edición del usuario, que no es un acceso).
 CREATE OR REPLACE PROCEDURE sp_autenticar_usuario (
     p_nombre_usuario IN USUARIOS.NOMBRE_USUARIO%TYPE,
     p_contrasena     IN USUARIOS.CONTRASENA%TYPE,
     p_cursor         OUT SYS_REFCURSOR
 ) AS
+    v_id_usuario USUARIOS.ID_USUARIO%TYPE;
 BEGIN
+    BEGIN
+        SELECT id_usuario INTO v_id_usuario
+        FROM USUARIOS
+        WHERE nombre_usuario = p_nombre_usuario
+          AND contrasena = p_contrasena
+          AND activo = 'S';
+
+        UPDATE USUARIOS
+        SET ultimo_acceso = CURRENT_TIMESTAMP
+        WHERE id_usuario = v_id_usuario;
+
+        COMMIT;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            -- Credenciales inválidas o cuenta desactivada: no se registra ningún acceso
+            -- y el cursor sale vacío, que es como el backend detecta el fallo de login.
+            v_id_usuario := NULL;
+    END;
+
     OPEN p_cursor FOR
         SELECT u.id_usuario, u.id_rol, r.nombre_rol, u.nombre_usuario,
                u.contrasena, u.email, u.nombre_completo, u.activo,
                u.fecha_creacion, u.ultimo_acceso
         FROM USUARIOS u
         INNER JOIN ROLES r ON u.id_rol = r.id_rol
-        WHERE u.nombre_usuario = p_nombre_usuario AND u.contrasena = p_contrasena AND u.activo = 'S';
+        WHERE u.id_usuario = v_id_usuario;
 END;
 /
 
@@ -118,8 +143,8 @@ CREATE OR REPLACE PROCEDURE sp_listar_usuarios (
 ) AS
 BEGIN
     OPEN p_cursor FOR
-        SELECT u.id_usuario, u.id_rol, r.nombre_rol, u.nombre_usuario, 
-               u.email, u.nombre_completo, u.activo
+        SELECT u.id_usuario, u.id_rol, r.nombre_rol, u.nombre_usuario,
+               u.email, u.nombre_completo, u.activo, u.ultimo_acceso
         FROM USUARIOS u
         INNER JOIN ROLES r ON u.id_rol = r.id_rol
         ORDER BY u.id_usuario;

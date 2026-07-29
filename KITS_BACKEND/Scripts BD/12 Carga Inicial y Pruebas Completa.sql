@@ -1,6 +1,40 @@
 -- SCRIPT 12: CARGA INICIAL COMPLETA DE DATOS
+--
+-- ============================================================================
+-- ATENCIÓN: este script BORRA TODOS LOS DATOS antes de cargar los de prueba.
+-- Es reejecutable a propósito, para dejar la base en un estado conocido cuantas
+-- veces haga falta. NO ejecutarlo sobre datos que se quieran conservar.
+-- ============================================================================
+--
+-- Sobre los ids: al recargar, las columnas IDENTITY siguen contando desde donde
+-- estaban, así que los roles ya no serán 1-4 sino 5-8, etc. Da igual: la
+-- autorización se resuelve por nombre_rol, no por id (ver JwtAuthFilter).
+--
+-- Sobre el stock: los pedidos que se crean aquí en estado EN_PROCESO, LISTO o
+-- ENTREGADO descuentan inventario al crearse (sp_crear_pedido_completo llama a
+-- sp_sincronizar_stock_pedido). Los PENDIENTE y CANCELADO no. Las cantidades
+-- están calculadas para que ningún producto quede en negativo.
 
 SET SERVEROUTPUT ON;
+
+-- ==============================================================================
+-- 0. LIMPIEZA
+--
+-- En orden inverso a las claves foráneas: detalle -> pedidos -> catálogos ->
+-- usuarios -> roles. Sin esto, una segunda corrida falla en UNIQUE(nombre_rol)
+-- y duplicaría clientes, productos y pedidos, que no tienen clave única.
+-- ==============================================================================
+BEGIN
+    DELETE FROM PEDIDO_PRODUCTO;
+    DELETE FROM PEDIDOS;
+    DELETE FROM PRODUCTOS;
+    DELETE FROM CLIENTES;
+    DELETE FROM USUARIOS;
+    DELETE FROM ROLES;
+    COMMIT;
+    DBMS_OUTPUT.PUT_LINE('>>> Datos anteriores eliminados. <<<');
+END;
+/
 
 DECLARE
     -- Variables para almacenar IDs generados de ROLES
@@ -98,10 +132,10 @@ BEGIN
     -- sp_op_gestionar_productos_pedido, que ya no existen en PKG_PEDIDOS).
     DBMS_OUTPUT.PUT_LINE('-- Creando Pedidos con diferentes estados...');
 
-    -- PEDIDO 1: Entregado (Cliente 1, Pagado)
+    -- PEDIDO 1: Entregado (Cliente 1, Pagado) -> descuenta stock al crearse
     v_detalles := t_lista_detalles(
-        t_detalle_pedido(v_id_prod_1, 1, 3500), -- 1x Baguette Artesanal
-        t_detalle_pedido(v_id_prod_4, 5, 1200)  -- 5x Empanada de Pollo
+        t_detalle_pedido(v_id_prod_1, 1, 1200), -- 1x Baguette Artesanal
+        t_detalle_pedido(v_id_prod_4, 5, 950)   -- 5x Empanada de Pollo
     );
     PKG_PEDIDOS.sp_op_crear_pedido_completo(
         p_id => NULL, p_cli => v_id_cli_1, p_usu => v_id_user_vendedor,
@@ -121,8 +155,10 @@ BEGIN
     );
 
     -- PEDIDO 3: En Proceso (Cliente 3, para futuro)
+    -- Caso clave del modelo nuevo: pedido para dentro de 5 días que YA fue tomado
+    -- por cocina, así que su stock sí está descontado.
     v_detalles := t_lista_detalles(
-        t_detalle_pedido(v_id_prod_4, 15, 1200),
+        t_detalle_pedido(v_id_prod_4, 15, 950),
         t_detalle_pedido(v_id_prod_5, 2, 5500)
     );
     PKG_PEDIDOS.sp_op_crear_pedido_completo(
@@ -131,9 +167,9 @@ BEGIN
         p_detalles => v_detalles, p_res => v_id_pedido
     );
 
-    -- PEDIDO 4: Cancelado (Cliente 4)
+    -- PEDIDO 4: Cancelado (Cliente 4) -> no descuenta stock
     v_detalles := t_lista_detalles(
-        t_detalle_pedido(v_id_prod_1, 2, 3500)
+        t_detalle_pedido(v_id_prod_1, 2, 1200)
     );
     PKG_PEDIDOS.sp_op_crear_pedido_completo(
         p_id => NULL, p_cli => v_id_cli_4, p_usu => v_id_user_vendedor,
@@ -161,6 +197,13 @@ EXCEPTION
     WHEN OTHERS THEN
         DBMS_OUTPUT.PUT_LINE('!!! ERROR DURANTE LA CARGA DE DATOS !!!');
         DBMS_OUTPUT.PUT_LINE('SQLCODE: ' || SQLCODE || ', SQLERRM: ' || SQLERRM);
-        ROLLBACK;
+        -- No se hace ROLLBACK: cada sp_* hace COMMIT internamente, así que lo ya
+        -- insertado no se puede deshacer desde aquí. Antes había uno y daba la falsa
+        -- impresión de que la carga era atómica. La forma de recuperarse de un fallo
+        -- a medias es volver a ejecutar el script: la limpieza inicial se encarga.
+        --
+        -- Se relanza para que el error llegue a la herramienta: si solo se imprimiera,
+        -- una carga fallida pasaría desapercibida entre la salida de DBMS_OUTPUT.
+        RAISE;
 END;
 /

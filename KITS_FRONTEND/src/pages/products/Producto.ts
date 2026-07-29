@@ -13,6 +13,24 @@ export interface Producto {
 /** Interfaz para registrar movimientos de inventario */
 export interface AjusteStock {
   idProducto: number;
-  cantidad: number; // Cantidad a sumar o restar (si es salida)
-  movimiento: string; // Tipo: 'ENTRADA' o 'SALIDA'
+  cantidad: number; // Siempre positiva; el sentido lo da 'movimiento'
+  movimiento: 'ENTRADA' | 'SALIDA'; // ENTRADA = producción, SALIDA = merma
+}
+
+/**
+ * Producto con su disponibilidad para una fecha concreta.
+ *
+ * Se usa al tomar un pedido para saber cuánto se puede prometer:
+ *
+ *   disponible = stockActual - comprometido
+ *
+ * `comprometido` son las cantidades de pedidos aún PENDIENTES para esa fecha o antes.
+ * Los pedidos que cocina ya tomó no cuentan: su stock ya salió de `stockActual`.
+ *
+ * Para fechas futuras `disponible` es orientativo, no un tope: lo que falte se hornea
+ * ese día. Solo es vinculante para pedidos del mismo día.
+ */
+export interface DisponibilidadProducto extends Producto {
+  comprometido: number;
+  disponible: number;
 }

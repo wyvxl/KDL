@@ -1,8 +1,10 @@
 package org.kits.entities;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -36,6 +38,12 @@ public class Usuario {
      * Estado del usuario ("S" para activo, "N" para inactivo).
      */
     private String activo;
+    /**
+     * Fecha y hora del último inicio de sesión correcto.
+     * La registra {@code sp_autenticar_usuario}; es null si el usuario nunca ha entrado.
+     */
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
+    private Date ultimoAcceso;
     /**
      * Rol asignado al usuario, que define sus permisos.
      */

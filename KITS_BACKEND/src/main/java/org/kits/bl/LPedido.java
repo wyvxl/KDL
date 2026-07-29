@@ -4,18 +4,15 @@ import org.kits.db.ConnectionManager;
 import org.kits.db.Operations;
 import org.kits.dto.DetallePedidoArray;
 import org.kits.dto.Parameter;
+import org.kits.dto.ProduccionRequerida;
 import org.kits.entities.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -32,53 +29,6 @@ public class LPedido extends Operations {
     public LPedido(ConnectionManager connectionManager) {
         super(connectionManager);
     }
-
-    /**
-     * Convierte un objeto de fecha genérico de la base de datos a un objeto {@code java.util.Date}.
-     *     <li>Tipos estándar de {@code java.sql} como {@link Timestamp} y {@link java.sql.Date}.</li>
-     *     <li>Tipos modernos de {@code java.time} como {@link LocalDateTime} y {@link LocalDate}.</li>
-     *     <li>Un fallback que procesa la representación en {@link String} del objeto, necesario para
-     *     ciertos tipos de datos propietarios de bases de datos (como Oracle) que no se mapean directamente.</li>
-     *
-     * @param dbObject El objeto de fecha retornado por la base de datos.
-     * @return Un objeto {@code java.util.Date} o {@code null} si la conversión falla o el input es nulo.
-     */
-    private Date toDate(Object dbObject) {
-        if (dbObject == null) {
-            return null;
-       }
-
-        switch (dbObject) {
-            case Timestamp ts:
-                return new Date(ts.getTime());
-            case java.sql.Date sqlDate:
-                return new Date(sqlDate.getTime());
-            case LocalDateTime ldt:
-                return Date.from(ldt.atZone(ZoneId.systemDefault()).toInstant());
-            case LocalDate ld:
-                return Date.from(ld.atStartOfDay(ZoneId.systemDefault()).toInstant());
-            default:
-                // Manejar objetos que no son tipos de fecha estándar
-                // pero cuya representación en String sí es una fecha válida.
-                String dateStr = dbObject.toString();
-                try {
-                    // Intenta convertir directamente a Timestamp, que maneja "YYYY-MM-DD HH:MI:SS.F"
-                    return Timestamp.valueOf(dateStr);
-                } catch (IllegalArgumentException e) {
-                    // si falla se intenta un parseo manual como último recurso.
-                    try {
-                        if (dateStr.length() >= 19) { // Debe tener al menos hasta los segundos
-                            return new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse(dateStr.substring(0, 19));
-                        }
-                    } catch (Exception parseEx) {
-                        LOGGER.warning("No se pudo convertir el objeto a fecha usando el fallback de String: " + dbObject + " (Tipo: " + dbObject.getClass().getName() + ")");
-                    }
-                }
-
-                return null;
-        }
-    }
-
 
     /**
      * Lista todos los pedidos con información básica del cliente y usuario responsable.
@@ -150,6 +100,38 @@ public class LPedido extends Operations {
             }
         }
         return detalles;
+    }
+
+    /**
+     * Parte de producción de cocina para una fecha: qué hay que hornear ese día.
+     *
+     * <p>Agrupa por producto las cantidades de todos los pedidos programados para esa
+     * fecha que siguen activos, separando lo que aún no salió del inventario
+     * ({@code porPreparar}) de lo que cocina ya tomó ({@code yaAlistado}).</p>
+     *
+     * @param fecha Fecha de producción a consultar
+     * @return Líneas del parte, ordenadas por nombre de producto
+     */
+    public List<ProduccionRequerida> ProduccionRequerida(LocalDate fecha) {
+        var parameters = new ArrayList<Parameter<?>>();
+        parameters.add(new Parameter<>("p_fecha", java.sql.Date.valueOf(fecha), Types.DATE));
+        parameters.add(createResponseParameter());
+
+        var produccion = new ArrayList<ProduccionRequerida>();
+        List<Map<String, Object>> result = executeQuery("PKG_PEDIDOS.sp_op_produccion_requerida", parameters);
+        if (result != null) {
+            for (Map<String, Object> row : result) {
+                produccion.add(new ProduccionRequerida(
+                        toInt(row.get("id_producto")),
+                        (String) row.get("nombre"),
+                        (String) row.get("unidad_medida"),
+                        toInt(row.get("stock_actual")),
+                        toInt(row.get("por_preparar")),
+                        toInt(row.get("ya_alistado")),
+                        toInt(row.get("faltante"))));
+            }
+        }
+        return produccion;
     }
 
     /**

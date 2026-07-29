@@ -26,13 +26,17 @@ public class LCliente extends Operations {
     }
 
     /**
-     * Lista todos los clientes activos del sistema.
-     * 
+     * Lista los clientes del sistema.
+     *
+     * @param incluirInactivos true para incluir también los dados de baja. La toma de
+     *                         pedidos usa false; la pantalla de mantenimiento, true, para
+     *                         poder verlos y reactivarlos.
      * @return Lista de clientes con información completa
      */
-    public ArrayList<Cliente> Listar() {
+    public ArrayList<Cliente> Listar(boolean incluirInactivos) {
         var clientes = new ArrayList<Cliente>();
         var parameters = new ArrayList<Parameter<?>>();
+        parameters.add(new Parameter<>("p_incluir_inactivos", incluirInactivos ? "S" : "N", Types.CHAR));
         parameters.add(createResponseParameter());
 
         List<Map<String, Object>> result = executeQuery("PKG_CLIENTES.sp_op_listar_clientes", parameters);
@@ -98,5 +102,37 @@ public class LCliente extends Operations {
         parameters.add(createIntegerResponseParameter());
 
         return executeWithIntResult("PKG_CLIENTES.sp_op_gestionar_cliente", parameters);
+    }
+
+    /**
+     * Da de baja un cliente (baja lógica: {@code activo = 'N'}).
+     *
+     * <p>La fila se conserva porque los pedidos la referencian y su historial tiene que
+     * seguir siendo consultable. El cliente simplemente deja de ofrecerse al tomar
+     * pedidos nuevos.</p>
+     *
+     * @param idCliente ID del cliente
+     * @return Número de filas afectadas
+     */
+    public int Eliminar(int idCliente) {
+        var parameters = new ArrayList<Parameter<?>>();
+        parameters.add(new Parameter<>("p_id", idCliente, Types.NUMERIC));
+        parameters.add(createIntegerResponseParameter());
+
+        return executeWithIntResult("PKG_CLIENTES.sp_op_eliminar_cliente", parameters);
+    }
+
+    /**
+     * Reactiva un cliente dado de baja.
+     *
+     * @param idCliente ID del cliente
+     * @return Número de filas afectadas
+     */
+    public int Activar(int idCliente) {
+        var parameters = new ArrayList<Parameter<?>>();
+        parameters.add(new Parameter<>("p_id", idCliente, Types.NUMERIC));
+        parameters.add(createIntegerResponseParameter());
+
+        return executeWithIntResult("PKG_CLIENTES.sp_op_activar_cliente", parameters);
     }
 }

@@ -20,19 +20,27 @@ import java.util.List;
 /**
  * Configuración de seguridad: autenticación stateless por JWT y autorización por rol.
  *
- * <p>Los roles reflejan los permisos ya calculados en {@code LUsuario.obtenerPermisosPorRol}:
- * Admin/Pruebas (idRol 1 y 4) ven todo; Repartidor (idRol 2) solo pedidos (lectura y cambio de
- * estado); Panadero (idRol 3) pedidos (todo) y productos.</p>
+ * <p>Las authorities salen del <em>nombre</em> del rol en la BD (ver
+ * {@link JwtAuthFilter#rolAAuthority}), no de su id. Los permisos reflejan cómo trabaja
+ * la panadería:</p>
  *
- * <ul>
- *   <li>Público: login ({@code POST /usuario/autenticar}) y health.</li>
- *   <li>Solo ADMIN: gestión de usuarios ({@code /usuario/**}), roles ({@code /rol/**}) y clientes ({@code /cliente/**}).</li>
- *   <li>ADMIN o PANADERO: productos ({@code /producto/**}) y la mayoría de operaciones sobre pedidos.</li>
- *   <li>ADMIN, REPARTIDOR o PANADERO: consultar pedidos y cambiar su estado
- *       ({@code GET /pedido/**}, {@code PUT /pedido/{id}/estado}) — el Repartidor no puede
- *       crear, marcar como pagado ni eliminar pedidos.</li>
- *   <li>Resto de endpoints: requiere estar autenticado.</li>
- * </ul>
+ * <table>
+ *   <caption>Reparto de responsabilidades</caption>
+ *   <tr><th>Rol</th><th>Pedidos</th><th>Clientes</th><th>Productos</th><th>Usuarios/Roles</th></tr>
+ *   <tr><td>ADMIN</td><td>todo</td><td>todo</td><td>todo</td><td>todo</td></tr>
+ *   <tr><td>VENDEDOR</td><td>crear, editar, cobrar, cancelar, eliminar</td><td>todo</td><td>solo consulta</td><td>—</td></tr>
+ *   <tr><td>PANADERO</td><td>consultar y avanzar estado</td><td>—</td><td>todo (produce y ajusta stock)</td><td>—</td></tr>
+ *   <tr><td>REPARTIDOR</td><td>consultar y avanzar estado</td><td>—</td><td>—</td><td>—</td></tr>
+ * </table>
+ *
+ * <p>El VENDEDOR toma los pedidos (teléfono/redes) y por eso necesita clientes y el catálogo
+ * de productos. El PANADERO no crea pedidos: los ve, los alista y repone inventario.</p>
+ *
+ * <p>Un rol que no aparezca aquí queda sin acceso a ningún endpoint de negocio: es el
+ * comportamiento seguro por defecto para roles creados desde {@code POST /rol}.</p>
+ *
+ * <p>Excepción transversal: {@code PUT /usuario/mi-contrasena} lo puede usar cualquier
+ * usuario autenticado para cambiar su propia contraseña.</p>
  */
 @Configuration
 public class SecurityConfig {
@@ -55,15 +63,38 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/usuario/autenticar").permitAll()
                         .requestMatchers("/health", "/health/**").permitAll()
+
+                        // Cambiar la contraseña propia: cualquier usuario autenticado.
+                        // El usuario afectado sale del token, así que nadie puede tocar la
+                        // de otro. Debe ir ANTES de la regla /usuario/** de abajo.
+                        .requestMatchers(HttpMethod.PUT, "/usuario/mi-contrasena").authenticated()
+
+                        // Administración del sistema (incluye restablecer contraseñas ajenas).
                         .requestMatchers("/usuario/**").hasRole("ADMIN")
                         .requestMatchers("/rol/**").hasRole("ADMIN")
-                        .requestMatchers("/cliente/**").hasRole("ADMIN")
+
+                        // Clientes: los necesita quien toma los pedidos.
+                        .requestMatchers("/cliente/**").hasAnyRole("ADMIN", "VENDEDOR")
+
+                        // Productos: el vendedor consulta catálogo y disponibilidad para poder
+                        // prometer; crear productos y mover stock es de cocina.
+                        .requestMatchers(HttpMethod.GET, "/producto/**").hasAnyRole("ADMIN", "PANADERO", "VENDEDOR")
                         .requestMatchers("/producto/**").hasAnyRole("ADMIN", "PANADERO")
-                        // Repartidor solo puede consultar pedidos y cambiar su estado (Procesar/Listo/Entregar).
-                        .requestMatchers(HttpMethod.GET, "/pedido/**").hasAnyRole("ADMIN", "REPARTIDOR", "PANADERO")
-                        .requestMatchers(HttpMethod.PUT, "/pedido/*/estado").hasAnyRole("ADMIN", "REPARTIDOR", "PANADERO")
-                        // Crear, marcar pagado y eliminar pedidos: Repartidor excluido.
-                        .requestMatchers("/pedido/**").hasAnyRole("ADMIN", "PANADERO")
+
+                        // Parte de producción: es la pantalla de cocina.
+                        .requestMatchers(HttpMethod.GET, "/pedido/produccion").hasAnyRole("ADMIN", "PANADERO")
+                        // Consultar pedidos: todos los roles operativos.
+                        .requestMatchers(HttpMethod.GET, "/pedido/**")
+                            .hasAnyRole("ADMIN", "VENDEDOR", "PANADERO", "REPARTIDOR")
+                        // Cambiar el estado: cocina y reparto lo avanzan (Procesar/Listo/Entregar);
+                        // el vendedor lo necesita para cancelar un pedido que el cliente anuló.
+                        .requestMatchers(HttpMethod.PUT, "/pedido/*/estado")
+                            .hasAnyRole("ADMIN", "PANADERO", "REPARTIDOR", "VENDEDOR")
+                        // Cobrar es del que atiende al cliente.
+                        .requestMatchers(HttpMethod.PUT, "/pedido/*/pagado").hasAnyRole("ADMIN", "VENDEDOR")
+                        // Crear, editar y eliminar pedidos: solo quien los toma.
+                        .requestMatchers("/pedido/**").hasAnyRole("ADMIN", "VENDEDOR")
+
                         .anyRequest().authenticated()
                 )
                 // Para una API stateless: 401 cuando falta/expira el token en vez de redirigir.
@@ -78,7 +109,8 @@ public class SecurityConfig {
         config.setAllowedOrigins(List.of(corsAllowedOrigin));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Content-Type", "Authorization"));
-        config.setAllowCredentials(true);
+        // La autenticación viaja en el header Authorization, no en cookies.
+        config.setAllowCredentials(false);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

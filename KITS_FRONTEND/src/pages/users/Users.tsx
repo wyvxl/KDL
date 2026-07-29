@@ -149,6 +149,27 @@ const Users: React.FC = () => {
     };
 
     // --- Auxiliares UI ---
+    /**
+     * Formatea la fecha del último inicio de sesión.
+     *
+     * El backend la manda en ISO 8601 UTC, así que `new Date(...)` la interpreta bien y
+     * `toLocaleString` la muestra en la hora local. No se le aplica el reemplazo de
+     * guiones por barras que se usa con las fechas 'YYYY-MM-DD': aquí rompería el offset.
+     */
+    const formatUltimoAcceso = (valor?: string): string => {
+        if (!valor) return 'Nunca';
+        const fecha = new Date(valor);
+        if (isNaN(fecha.getTime())) return 'Nunca';
+
+        return fecha.toLocaleString('es-CR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+
     const getStatusBadge = (activo: string) => {
         return activo === 'S' ?
             <span className="status-badge active">Activo</span> :
@@ -266,6 +287,7 @@ const Users: React.FC = () => {
                                     <th>Email</th>
                                     <th>Rol</th>
                                     <th>Estado</th>
+                                    <th>Último Acceso</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
@@ -278,6 +300,12 @@ const Users: React.FC = () => {
                                         <td>{usuario.email}</td>
                                         <td>{getRoleName(usuario.idRol)}</td>
                                         <td>{getStatusBadge(usuario.activo || 'N')}</td>
+                                        <td
+                                            title={usuario.ultimoAcceso ? undefined : 'El usuario nunca ha iniciado sesión'}
+                                            style={usuario.ultimoAcceso ? undefined : { color: 'var(--color-text-light)', fontStyle: 'italic' }}
+                                        >
+                                            {formatUltimoAcceso(usuario.ultimoAcceso)}
+                                        </td>
                                         <td>
                                             <div className="action-buttons">
                                                 <button
@@ -333,6 +361,7 @@ const Users: React.FC = () => {
                 isOpen={isPasswordModalOpen}
                 onClose={() => setIsPasswordModalOpen(false)}
                 onSuccess={handlePasswordChangeSuccess}
+                modo="admin"
                 nombreUsuario={selectedUserForPassword}
             />
 

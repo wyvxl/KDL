@@ -29,3 +29,20 @@ export interface DetallePedidoArray {
   cantidad: number;
   precio: number;
 }
+
+/**
+ * Línea del parte de producción de cocina para una fecha.
+ * Responde a "¿qué tengo que hornear para el jueves?".
+ */
+export interface ProduccionRequerida {
+  idProducto: number;
+  nombre: string;
+  unidadMedida: string;
+  stockActual: number;
+  /** Unidades de pedidos del día aún PENDIENTES (todavía no salieron del inventario). */
+  porPreparar: number;
+  /** Unidades de pedidos del día ya tomados por cocina (su stock ya se descontó). */
+  yaAlistado: number;
+  /** Cuánto falta hornear para cubrir `porPreparar` con el stock actual. */
+  faltante: number;
+}
