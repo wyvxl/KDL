@@ -10,7 +10,13 @@ export interface User {
   nombreCompleto: string;
   email: string;
   idRol: number;
-  permisos: string[]; // Lista de códigos de permiso (ej: 'VER_PEDIDOS')
+  nombreRol?: string; // Nombre del rol en la BD (ADMIN, VENDEDOR, PANADERO, REPARTIDOR)
+  /**
+   * Códigos de permiso que decide el backend según el rol (ver utils/permisos.ts).
+   * Es lo que hay que consultar para mostrar u ocultar controles: `idRol` no sirve
+   * para eso porque los ids de ROLES cambian al recargar la base.
+   */
+  permisos: string[];
 }
 
 /** Respuesta del endpoint de autenticación del backend. */

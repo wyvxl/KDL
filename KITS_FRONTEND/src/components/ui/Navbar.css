@@ -78,6 +78,26 @@
     font-size: 0.875rem;
 }
 
+/* Botón cuadrado solo-icono del panel de usuario (cambiar contraseña) */
+.btn-icon {
+    background-color: transparent;
+    color: var(--color-text-light);
+    border: 1px solid var(--border-color);
+    padding: 8px;
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-icon:hover {
+    background-color: var(--color-bg-hover);
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
 .btn-logout {
     background-color: transparent;
     color: var(--color-text-light);

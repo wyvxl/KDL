@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, Users, ShoppingCart, UserCog, LogOut, ChefHat } from 'lucide-react';
+import { LayoutDashboard, Package, Users, ShoppingCart, UserCog, LogOut, ChefHat, KeyRound } from 'lucide-react';
 import './Navbar.css';
 
 import { authService } from '../../services/authService';
+import { tienePermiso } from '../../utils/permisos';
+import ChangePasswordModal from '../modals/ChangePasswordModal';
 
 /**
  * Componente Navbar principal de la aplicación.
@@ -11,9 +13,10 @@ import { authService } from '../../services/authService';
  */
 const Navbar: React.FC = () => {
     const navigate = useNavigate();
-    // Obtenemos usuario y permisos actuales
     const user = authService.getCurrentUser();
-    const permisos = user?.permisos || [];
+    // Cambiar la contraseña propia no depende del rol: se ofrece desde aquí para que
+    // llegue a todos, no solo a quien puede entrar a la pantalla de Usuarios.
+    const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
     // Función auxiliar para clases CSS de enlaces activos
     const getNavLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -26,7 +29,7 @@ const Navbar: React.FC = () => {
     };
 
     // Verificación de permisos para mostrar/ocultar enlaces
-    const hasPermission = (p: string) => permisos.includes(p) || permisos.includes("GESTIONAR_TODO");
+    const hasPermission = tienePermiso;
 
     return (
         <nav className="navbar">
@@ -78,12 +81,27 @@ const Navbar: React.FC = () => {
                     <span className="user-name">
                         {user?.nombreCompleto || 'Usuario'}
                     </span>
+                    <button
+                        className="btn-icon"
+                        onClick={() => setIsPasswordModalOpen(true)}
+                        title="Cambiar mi contraseña"
+                        aria-label="Cambiar mi contraseña"
+                    >
+                        <KeyRound size={18} />
+                    </button>
                     <button className="btn-logout" onClick={handleLogout}>
                         <LogOut size={18} />
                         <span>Salir</span>
                     </button>
                 </div>
             </div>
+
+            <ChangePasswordModal
+                isOpen={isPasswordModalOpen}
+                onClose={() => setIsPasswordModalOpen(false)}
+                onSuccess={() => setIsPasswordModalOpen(false)}
+                modo="propia"
+            />
         </nav>
     );
 };

@@ -58,11 +58,15 @@ CREATE TABLE PEDIDOS (
     id_usuario_responsable NUMBER NOT NULL,
     fecha_pedido TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     fecha_programada DATE NOT NULL, -- Fecha de entrega programada
-    estado VARCHAR2(20) DEFAULT 'PENDIENTE' 
+    estado VARCHAR2(20) DEFAULT 'PENDIENTE'
         CHECK (estado IN ('PENDIENTE', 'EN_PROCESO', 'LISTO', 'ENTREGADO', 'CANCELADO')),
     pagado CHAR(1) DEFAULT 'N' CHECK (pagado IN ('S', 'N')),
     total NUMBER(10,2) DEFAULT 0,
     fecha_entrega TIMESTAMP, -- Fecha real de entrega
+    -- Indica si los productos de este pedido ya salieron del inventario.
+    -- Invariante: 'S' <=> estado IN ('EN_PROCESO','LISTO','ENTREGADO').
+    -- Hace idempotente la aplicación/reversión de stock (ver sp_sincronizar_stock_pedido).
+    stock_aplicado CHAR(1) DEFAULT 'N' CHECK (stock_aplicado IN ('S', 'N')),
     CONSTRAINT fk_pedidos_clientes FOREIGN KEY (id_cliente) REFERENCES CLIENTES(id_cliente),
     CONSTRAINT fk_pedidos_usuarios FOREIGN KEY (id_usuario_responsable) REFERENCES USUARIOS(id_usuario)
 );
@@ -94,139 +98,36 @@ CREATE INDEX idx_pedidos_cliente ON PEDIDOS(id_cliente);
 -- etc...
 
 -- TRIGGERS
+--
+-- Este esquema no usa triggers. Las dos cosas que antes se hacían con ellos se
+-- movieron a los procedimientos, porque desde el trigger no había forma de
+-- distinguir qué operación las estaba disparando.
 
--- Trigger para registrar ultimo acceso de usuario
-CREATE OR REPLACE TRIGGER trg_usuario_ultimo_acceso
-BEFORE UPDATE ON USUARIOS
-FOR EACH ROW
-BEGIN
-    :NEW.ultimo_acceso := CURRENT_TIMESTAMP;
-END;
-/
+-- ULTIMO ACCESO DE USUARIO
+--
+-- Antes lo ponía un trigger BEFORE UPDATE ON USUARIOS. No funcionaba: autenticarse
+-- es un SELECT, así que un login nunca lo actualizaba. Lo que sí lo actualizaba era
+-- cualquier otro UPDATE (editar el usuario, cambiarle la contraseña, desactivarlo),
+-- con lo que la columna acababa siendo "última modificación" con nombre equivocado.
+--
+-- Ahora lo registra sp_autenticar_usuario (script 04), y solo cuando las credenciales
+-- son correctas.
 
--- Trigger para validar stock antes de crear un pedido
-CREATE OR REPLACE TRIGGER trg_validar_stock_pedido
-BEFORE INSERT ON PEDIDO_PRODUCTO
-FOR EACH ROW
-DECLARE
-    v_stock_disponible NUMBER;
-    v_nombre_producto  VARCHAR2(100);
-    v_fecha_programada DATE;
-BEGIN
-    -- Obtener Stock actual d producto
-    SELECT stock_actual, nombre
-    INTO v_stock_disponible, v_nombre_producto
-    FROM PRODUCTOS
-    WHERE id_producto = :NEW.id_producto;
-
-    -- Obtener fecha programada del pedido para saber si el pedido es para hoy o para el futuro
-    SELECT TRUNC(fecha_programada)
-    INTO v_fecha_programada
-    FROM PEDIDOS
-    WHERE id_pedido = :NEW.id_pedido;
-    
-    -- Validacion
-    -- Solo se bloquea si el pedido es para hoy o antes y no hay stock /  Si es para despues se permite
-    IF v_fecha_programada <= TRUNC(SYSDATE) THEN
-        IF v_stock_disponible < :NEW.cantidad THEN
-            RAISE_APPLICATION_ERROR(-20001,
-                'Stock insuficiente para el producto: ' || v_nombre_producto ||
-                '. Disponible: ' || v_stock_disponible || ', Solicitado: ' || :NEW.cantidad);
-        END IF;
-    END IF;
-    
-EXCEPTION
-    WHEN NO_DATA_FOUND THEN
-        -- Manejo de error si el producto o pedido no existen
-        RAISE_APPLICATION_ERROR(-20002, 'Error al validar stock: Producto o Pedido no encontrado.');
-END;
-/
-
--- TRIGGERS CONTROL DE STOCK AUTOMATICO
-
--- Trigger para rebajar stock cuando se agrega un producto al pedido
-CREATE OR REPLACE TRIGGER trg_rebajar_stock_pedido
-AFTER INSERT ON PEDIDO_PRODUCTO
-FOR EACH ROW
-DECLARE
-    v_fecha_programada DATE;
-BEGIN
-    -- Obtener fecha programada del pedido
-    SELECT TRUNC(fecha_programada)
-    INTO v_fecha_programada
-    FROM PEDIDOS
-    WHERE id_pedido = :NEW.id_pedido;
-    
-    -- Solo rebajar stock si el pedido es para hoy o antes xq para pedidos futuros se produce bajo demanda
-    IF v_fecha_programada <= TRUNC(SYSDATE) THEN
-        UPDATE PRODUCTOS 
-        SET stock_actual = stock_actual - :NEW.cantidad
-        WHERE id_producto = :NEW.id_producto;
-    END IF;
-    
-EXCEPTION
-    WHEN NO_DATA_FOUND THEN
-        -- Si no encuentra el pedido, no hacer nada
-        NULL;
-END;
-/
-
--- Trigger para restaurar stock cuando se elimina un producto del pedido
-CREATE OR REPLACE TRIGGER trg_restaurar_stock_pedido
-AFTER DELETE ON PEDIDO_PRODUCTO
-FOR EACH ROW
-DECLARE
-    v_fecha_programada DATE;
-BEGIN
-    -- Obtener fecha programada del pedido
-    SELECT TRUNC(fecha_programada)
-    INTO v_fecha_programada
-    FROM PEDIDOS
-    WHERE id_pedido = :OLD.id_pedido;
-    
-    -- Solo restaurar stock si el pedido era para hoy o antes
-    IF v_fecha_programada <= TRUNC(SYSDATE) THEN
-        UPDATE PRODUCTOS 
-        SET stock_actual = stock_actual + :OLD.cantidad
-        WHERE id_producto = :OLD.id_producto;
-    END IF;
-    
-EXCEPTION
-    WHEN NO_DATA_FOUND THEN
-        -- Si no encuentra el pedido, no hacer nada
-        NULL;
-END;
-/
-
--- Trigger para ajustar stock cuando se modifica la cantidad de un producto
-CREATE OR REPLACE TRIGGER trg_ajustar_stock_pedido
-AFTER UPDATE ON PEDIDO_PRODUCTO
-FOR EACH ROW
-DECLARE
-    v_fecha_programada DATE;
-    v_diferencia NUMBER;
-BEGIN
-    -- Solo procesar si cambió la cantidad
-    IF :NEW.cantidad != :OLD.cantidad THEN
-        -- Obtener fecha programada del pedido
-        SELECT TRUNC(fecha_programada)
-        INTO v_fecha_programada
-        FROM PEDIDOS
-        WHERE id_pedido = :NEW.id_pedido;
-        
-        -- Solo ajustar stock si el pedido es para HOY o antes
-        IF v_fecha_programada <= TRUNC(SYSDATE) THEN
-            v_diferencia := :NEW.cantidad - :OLD.cantidad;
-            
-            UPDATE PRODUCTOS 
-            SET stock_actual = stock_actual - v_diferencia
-            WHERE id_producto = :NEW.id_producto;
-        END IF;
-    END IF;
-    
-EXCEPTION
-    WHEN NO_DATA_FOUND THEN
-        -- Si no encuentra el pedido, no hacer nada
-        NULL;
-END;
-/
+-- CONTROL DE STOCK
+--
+-- El stock NO se maneja con triggers sobre PEDIDO_PRODUCTO. Se hacía así antes,
+-- condicionado a "fecha_programada <= SYSDATE", y tenía dos problemas:
+--
+--   1. Un pedido para mañana o para la otra semana nunca descontaba stock. Ni al
+--      crearse, ni al llegar el día (no hay nada que se ejecute ese día), ni al
+--      entregarse. Se entregaba el producto y el inventario seguía intacto.
+--   2. Al tomar el pedido no se puede saber si habrá stock: para el jueves se
+--      hornea el jueves. Validar contra el inventario de hoy no tiene sentido.
+--
+-- Modelo actual: el stock sale del inventario cuando COCINA TOMA EL PEDIDO,
+-- es decir cuando pasa de PENDIENTE a EN_PROCESO. Da igual si el pedido es para
+-- hoy o para dentro de un mes: se descuenta contra el stock que exista ese día.
+--
+-- Ver sp_aplicar_stock_pedido / sp_revertir_stock_pedido / sp_sincronizar_stock_pedido
+-- en el script 06. La columna PEDIDOS.stock_aplicado garantiza que se aplique
+-- una sola vez.

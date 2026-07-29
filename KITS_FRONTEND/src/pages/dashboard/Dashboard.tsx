@@ -14,15 +14,37 @@ import {
     AlertCircle,
     CheckCircle2,
     ArrowRight,
+    ChefHat,
     type LucideIcon
 } from 'lucide-react';
 import { pedidoService } from '../../services/pedidoService';
 import { productoService } from '../../services/productoService';
 import { authService } from '../../services/authService';
-import type { Pedido, DetallePedido } from '../orders';
+import { PERMISOS, tienePermiso } from '../../utils/permisos';
+import { mensajeDeError } from '../../utils/errorHandler';
+import type { Pedido, DetallePedido, ProduccionRequerida } from '../orders';
 import type { Producto } from '../products';
 import './Dashboard.css';
 import Toast, { type ToastType } from '../../components/ui/Toast';
+
+/** Un pedido cancelado ya no es trabajo pendiente: no cuenta como atrasado ni en la agenda. */
+const estaActivo = (pedido: Pedido) => pedido.estado !== 'ENTREGADO' && pedido.estado !== 'CANCELADO';
+
+/**
+ * Flujo de estados del pedido, el mismo que usa la pantalla de Pedidos.
+ * Pasar a EN_PROCESO es lo que descuenta el stock: es cuando cocina toma el pedido.
+ */
+const SIGUIENTE_ESTADO: Record<string, { estado: string; etiqueta: string; exito: string }> = {
+    PENDIENTE: { estado: 'EN_PROCESO', etiqueta: 'Procesar', exito: 'Pedido en proceso' },
+    EN_PROCESO: { estado: 'LISTO', etiqueta: 'Marcar Listo', exito: 'Pedido listo para entregar' },
+    LISTO: { estado: 'ENTREGADO', etiqueta: 'Entregar', exito: 'Pedido entregado exitosamente' },
+};
+
+const COLOR_ESTADO: Record<string, string> = {
+    EN_PROCESO: '#3b82f6',
+    LISTO: '#f59e0b',
+    ENTREGADO: '#8b5cf6',
+};
 
 // KPI Card: componente presentacional puro, definido a nivel de módulo (no dentro del render).
 const KPICard = ({ title, value, icon: Icon, variant }: { title: string; value: number; icon: LucideIcon; variant: string }) => (
@@ -39,8 +61,6 @@ const KPICard = ({ title, value, icon: Icon, variant }: { title: string; value: 
 
 const Dashboard: React.FC = () => {
     const navigate = useNavigate();
-    const user = authService.getCurrentUser();
-    const permisos = user?.permisos || [];
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<{
         pedidosHoy: Pedido[];
@@ -48,12 +68,14 @@ const Dashboard: React.FC = () => {
         pendientes: Pedido[];
         entregados: Pedido[];
         stockBajo: Producto[];
+        produccion: ProduccionRequerida[];
     }>({
         pedidosHoy: [],
         atrasados: [],
         pendientes: [],
         entregados: [],
-        stockBajo: []
+        stockBajo: [],
+        produccion: []
     });
 
     const [detalles, setDetalles] = useState<Record<number, DetallePedido[]>>({});
@@ -64,7 +86,65 @@ const Dashboard: React.FC = () => {
         setToast({ message, type });
     };
 
-    const hasPermission = (p: string) => permisos.includes(p) || permisos.includes("GESTIONAR_TODO");
+    /**
+     * Avanza un pedido al siguiente estado y refleja el cambio en las listas locales.
+     *
+     * Al pasar a EN_PROCESO el backend descuenta el stock. Si no alcanza, rechaza el
+     * cambio y aquí se muestra qué producto faltó.
+     */
+    const avanzarEstado = async (pedido: Pedido, siguiente: { estado: string; exito: string }) => {
+        try {
+            const usuarioActual = authService.getCurrentUser();
+            await pedidoService.actualizarEstado(pedido.idPedido!, siguiente.estado);
+
+            // El backend deja el pedido a nombre del usuario de la sesión; se refleja
+            // aquí también para que la UI lo muestre al instante sin recargar.
+            const actualizado: Pedido = {
+                ...pedido,
+                estado: siguiente.estado,
+                usuarioResponsable: {
+                    ...pedido.usuarioResponsable,
+                    idUsuario: usuarioActual?.idUsuario ?? 0,
+                    nombreCompleto: usuarioActual?.nombreCompleto ?? 'Usuario',
+                    nombreUsuario: usuarioActual?.nombreUsuario,
+                    email: usuarioActual?.email
+                }
+            };
+            setSelectedOrder(actualizado);
+
+            setData(prev => {
+                if (siguiente.estado !== 'ENTREGADO') {
+                    // Sigue en la agenda, solo cambia cómo se muestra.
+                    const reemplazar = (lista: Pedido[]) =>
+                        lista.map(p => p.idPedido === actualizado.idPedido ? actualizado : p);
+                    return {
+                        ...prev,
+                        pedidosHoy: reemplazar(prev.pedidosHoy),
+                        atrasados: reemplazar(prev.atrasados),
+                        pendientes: reemplazar(prev.pendientes)
+                    };
+                }
+                // Al entregar sale de la agenda y pasa a finalizados.
+                const quitar = (lista: Pedido[]) => lista.filter(p => p.idPedido !== actualizado.idPedido);
+                return {
+                    ...prev,
+                    pedidosHoy: quitar(prev.pedidosHoy),
+                    atrasados: quitar(prev.atrasados),
+                    pendientes: quitar(prev.pendientes),
+                    entregados: [...prev.entregados, actualizado]
+                };
+            });
+
+            showToast(siguiente.exito, 'success');
+        } catch (error) {
+            console.error('Error al actualizar estado:', error);
+            showToast(mensajeDeError(error, 'Error al actualizar el estado del pedido'), 'error');
+        }
+    };
+
+    const hasPermission = tienePermiso;
+    const puedeGestionar = tienePermiso(PERMISOS.GESTIONAR_PEDIDOS);
+    const puedeAvanzar = tienePermiso(PERMISOS.AVANZAR_PEDIDOS);
 
     /**
      * Convierte una fecha a formato 'YYYY-MM-DD' para comparaciones consistentes.
@@ -104,12 +184,12 @@ const Dashboard: React.FC = () => {
                 if (pedidos) {
                     pedidosHoyList = (pedidos as Pedido[]).filter(p => {
                         const pDateStr = toYYYYMMDD(p.fechaProgramada);
-                        return pDateStr === todayStr && p.estado !== 'ENTREGADO';
+                        return pDateStr === todayStr && estaActivo(p);
                     });
 
                     atrasadosList = (pedidos as Pedido[]).filter(p => {
                         const pDateStr = toYYYYMMDD(p.fechaProgramada);
-                        return pDateStr && pDateStr < todayStr && p.estado !== 'ENTREGADO';
+                        return pDateStr && pDateStr < todayStr && estaActivo(p);
                     });
 
                     pendientesList = (pedidos as Pedido[]).filter(p => p.estado === 'PENDIENTE');
@@ -138,12 +218,23 @@ const Dashboard: React.FC = () => {
                     });
                 }
 
+                // Parte de producción del día: qué tiene que hornear cocina.
+                let produccionList: ProduccionRequerida[] = [];
+                if (hasPermission(PERMISOS.VER_PRODUCCION)) {
+                    try {
+                        produccionList = await pedidoService.produccion(todayStr);
+                    } catch (err) {
+                        console.error('Error cargando el parte de producción:', err);
+                    }
+                }
+
                 setData({
                     pedidosHoy: pedidosHoyList,
                     atrasados: atrasadosList,
                     pendientes: pendientesList,
                     entregados: entregadosList,
-                    stockBajo: stockBajoList
+                    stockBajo: stockBajoList,
+                    produccion: produccionList
                 });
 
                 if (hasPermission('VER_PEDIDOS')) {
@@ -290,13 +381,46 @@ const Dashboard: React.FC = () => {
                 {/* RIGHT COLUMN: SIDE PANEL */}
                 <div className="side-panel">
 
+                    {/* PARTE DE PRODUCCIÓN (cocina): qué hay que hornear hoy */}
+                    {hasPermission(PERMISOS.VER_PRODUCCION) && (
+                        <div className="alerts-box">
+                            <div className="section-header">
+                                <h2><ChefHat size={20} /> Producción de Hoy</h2>
+                            </div>
+                            {data.produccion.length > 0 ? (
+                                <div className="stock-list">
+                                    {data.produccion.map(linea => (
+                                        <div key={linea.idProducto} className="stock-item">
+                                            <span style={{ fontWeight: 600 }}>{linea.nombre}</span>
+                                            <span style={{ fontSize: '12px', fontWeight: 700 }}>
+                                                {linea.faltante > 0 ? (
+                                                    <span style={{ color: '#dc2626' }} title="Falta hornear">
+                                                        faltan {linea.faltante}
+                                                    </span>
+                                                ) : (
+                                                    <span style={{ color: '#10b981' }} title="Alcanza con el stock actual">
+                                                        {linea.porPreparar > 0 ? `${linea.porPreparar} por alistar` : 'al día'}
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', fontSize: '13px' }}>
+                                    Nada programado para hoy
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* ACCIONES RÁPIDAS */}
                     <div className="actions-box">
                         <div className="section-header">
                             <h2>Acciones Rápidas</h2>
                         </div>
                         <div className="quick-btn-grid">
-                            {hasPermission('VER_PEDIDOS') && (
+                            {puedeGestionar && (
                                 <button className="cmd-btn primary" onClick={() => navigate('/pedidos')}>
                                     <Plus size={24} />
                                     Nuevo Pedido
@@ -437,7 +561,12 @@ const Dashboard: React.FC = () => {
                             </div>
 
                             <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem', flexWrap: 'wrap' }}>
-                                {!selectedOrder.pagado ? (
+                                {/* Cobrar lo hace quien atiende al cliente; el resto solo ve el estado. */}
+                                {selectedOrder.pagado ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0.5rem 1.5rem', backgroundColor: '#d1fae5', color: '#065f46', borderRadius: '50px', fontWeight: '500' }}>
+                                        <span style={{ fontWeight: 'bold' }}>₡</span> Pagado
+                                    </div>
+                                ) : puedeGestionar && (
                                     <button
                                         onClick={async () => {
                                             try {
@@ -464,86 +593,23 @@ const Dashboard: React.FC = () => {
                                     >
                                         <span style={{ fontWeight: 'bold' }}>₡</span> Marcar Pagado
                                     </button>
-                                ) : (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0.5rem 1.5rem', backgroundColor: '#d1fae5', color: '#065f46', borderRadius: '50px', fontWeight: '500' }}>
-                                        <span style={{ fontWeight: 'bold' }}>₡</span> Pagado
-                                    </div>
                                 )}
 
-                                {selectedOrder.estado === 'PENDIENTE' && (
+                                {/* Avance de estado. Sigue el mismo flujo que la pantalla de Pedidos:
+                                    PENDIENTE -> EN_PROCESO -> LISTO -> ENTREGADO. */}
+                                {puedeAvanzar && SIGUIENTE_ESTADO[selectedOrder.estado] && (
                                     <button
-                                        onClick={async () => {
-                                            try {
-                                                const usuarioActual = authService.getCurrentUser();
-                                                await pedidoService.actualizarEstado(selectedOrder.idPedido!, 'EN_PROCESO', usuarioActual?.idUsuario);
-
-                                                // Actualizar orden local con el nuevo estado Y el nuevo responsable (para que lo muestre la UI al instante)
-                                                const updatedOrder = {
-                                                    ...selectedOrder,
-                                                    estado: 'EN_PROCESO',
-                                                    usuarioResponsable: {
-                                                        ...selectedOrder.usuarioResponsable,
-                                                        idUsuario: usuarioActual?.idUsuario || 0,
-                                                        nombreCompleto: usuarioActual?.nombreCompleto || 'Usuario',
-                                                        nombreUsuario: usuarioActual?.nombreUsuario,
-                                                        email: usuarioActual?.email
-                                                    }
-                                                };
-                                                setSelectedOrder(updatedOrder);
-
-                                                // Actualizar listas: si cambia estado, sigue en las listas pero cambia su display
-                                                const updateList = (list: Pedido[]) => list.map(p => p.idPedido === updatedOrder.idPedido ? updatedOrder : p);
-                                                setData(prev => ({
-                                                    ...prev,
-                                                    pedidosHoy: updateList(prev.pedidosHoy),
-                                                    atrasados: updateList(prev.atrasados),
-                                                    pendientes: updateList(prev.pendientes)
-                                                }));
-                                                showToast('Pedido en proceso', 'success');
-                                            } catch (error) { console.error(error); showToast('Error al actualizar estado', 'error'); }
-                                        }}
+                                        onClick={() => void avanzarEstado(selectedOrder, SIGUIENTE_ESTADO[selectedOrder.estado])}
                                         className="action-btn"
-                                        style={{ width: 'auto', padding: '0.5rem 1.5rem', backgroundColor: '#3b82f6', color: 'white', borderRadius: '50px' }}
-                                    >
-                                        Procesar
-                                    </button>
-                                )}
-
-                                {selectedOrder.estado === 'EN_PROCESO' && (
-                                    <button
-                                        onClick={async () => {
-                                            try {
-                                                const usuarioActual = authService.getCurrentUser();
-                                                await pedidoService.actualizarEstado(selectedOrder.idPedido!, 'ENTREGADO', usuarioActual?.idUsuario);
-
-                                                const updatedOrder = {
-                                                    ...selectedOrder,
-                                                    estado: 'ENTREGADO',
-                                                    usuarioResponsable: {
-                                                        ...selectedOrder.usuarioResponsable,
-                                                        idUsuario: usuarioActual?.idUsuario || 0,
-                                                        nombreCompleto: usuarioActual?.nombreCompleto || 'Usuario',
-                                                        nombreUsuario: usuarioActual?.nombreUsuario,
-                                                        email: usuarioActual?.email
-                                                    }
-                                                };
-                                                setSelectedOrder(updatedOrder);
-                                                // Al entregar, se remueve de las listas de Agenda (Hoy/Atrasados)
-                                                const removeList = (list: Pedido[]) => list.filter(p => p.idPedido !== updatedOrder.idPedido);
-                                                setData(prev => ({
-                                                    ...prev,
-                                                    pedidosHoy: removeList(prev.pedidosHoy),
-                                                    atrasados: removeList(prev.atrasados),
-                                                    pendientes: removeList(prev.pendientes),
-                                                    entregados: [...prev.entregados, updatedOrder]
-                                                }));
-                                                showToast('Pedido entregado exitosamente', 'success');
-                                            } catch (error) { console.error(error); showToast('Error al entregar pedido', 'error'); }
+                                        style={{
+                                            width: 'auto', padding: '0.5rem 1.5rem', color: 'white', borderRadius: '50px',
+                                            backgroundColor: COLOR_ESTADO[SIGUIENTE_ESTADO[selectedOrder.estado].estado]
                                         }}
-                                        className="action-btn"
-                                        style={{ width: 'auto', padding: '0.5rem 1.5rem', backgroundColor: '#8b5cf6', color: 'white', borderRadius: '50px' }}
+                                        title={selectedOrder.estado === 'PENDIENTE'
+                                            ? 'Cocina toma el pedido y descuenta el stock'
+                                            : undefined}
                                     >
-                                        Entregar
+                                        {SIGUIENTE_ESTADO[selectedOrder.estado].etiqueta}
                                     </button>
                                 )}
                             </div>

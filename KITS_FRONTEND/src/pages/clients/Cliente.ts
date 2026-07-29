@@ -27,4 +27,10 @@ export interface Cliente {
    * Notas adicionales o comentarios sobre el cliente.
    */
   notas?: string;
+  /**
+   * Estado del cliente: 'S' activo, 'N' dado de baja.
+   * Un cliente dado de baja conserva su historial de pedidos pero deja de ofrecerse
+   * al tomar pedidos nuevos.
+   */
+  activo?: string;
 }

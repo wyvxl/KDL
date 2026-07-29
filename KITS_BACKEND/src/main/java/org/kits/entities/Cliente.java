@@ -35,7 +35,7 @@ public class Cliente {
      */
     private String notas;
     /**
-     * Estado del cliente en el sistema ("A" para activo, "I" para inactivo).
+     * Estado del cliente en el sistema ("S" para activo, "N" para dado de baja).
      */
     private String activo;
     /**

@@ -3,11 +3,14 @@ package org.kits.controllers;
 import jakarta.validation.Valid;
 import org.kits.bl.LProducto;
 import org.kits.dto.AjusteStockDTO;
+import org.kits.dto.DisponibilidadProducto;
 import org.kits.entities.Producto;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -39,9 +42,29 @@ public class ProductoController {
     }
 
     /**
+     * Catálogo con la disponibilidad de cada producto para una fecha.
+     * GET /producto/disponibilidad?fecha=2026-07-29&excluirPedido=12
+     *
+     * <p>Lo consume la pantalla de toma de pedidos: además del stock físico devuelve
+     * cuánto está comprometido en pedidos aún pendientes para esa fecha y cuánto queda
+     * libre.</p>
+     *
+     * @param fecha         Fecha programada del pedido (por defecto, hoy)
+     * @param excluirPedido Pedido en edición, para no contarlo contra sí mismo (opcional)
+     * @return Lista de productos activos con comprometido y disponible
+     */
+    @GetMapping("disponibilidad")
+    public ResponseEntity<List<DisponibilidadProducto>> Disponibilidad(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
+            @RequestParam(required = false) Integer excluirPedido) {
+        LocalDate fechaConsulta = fecha != null ? fecha : LocalDate.now();
+        return ResponseEntity.ok(this.logica.Disponibilidad(fechaConsulta, excluirPedido));
+    }
+
+    /**
      * Consulta un producto específico por su ID.
      * GET /producto/{id}
-     * 
+     *
      * @param idProducto ID del producto a consultar
      * @return Datos del producto encontrado
      */
