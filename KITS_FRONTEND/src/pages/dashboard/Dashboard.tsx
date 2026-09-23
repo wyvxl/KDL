@@ -27,6 +27,7 @@ import type { Pedido, DetallePedido, ProduccionRequerida } from '../orders';
 import type { Producto } from '../products';
 import './Dashboard.css';
 import Toast, { type ToastType } from '../../components/ui/Toast';
+import { formatoFecha, formatoMoneda } from '../../utils/formato';
 
 /** Un pedido cancelado ya no es trabajo pendiente: no cuenta como atrasado ni en la agenda. */
 const estaActivo = (pedido: Pedido) => pedido.estado !== 'ENTREGADO' && pedido.estado !== 'CANCELADO';
@@ -278,7 +279,7 @@ const Dashboard: React.FC = () => {
             >
                 <div className="agenda-time">
                     <span className="time-val">
-                        {order.fechaProgramada ? new Date(String(order.fechaProgramada).replace(/-/g, '/')).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' }) : '--/--'}
+                        {order.fechaProgramada ? formatoFecha(order.fechaProgramada, { conAnio: false }) : '--/--'}
                     </span>
                     <span className="date-val">
                         {isFinished ? 'LISTO' : (isLate ? 'ATRASADO' : 'HOY')}
@@ -519,11 +520,11 @@ const Dashboard: React.FC = () => {
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                     <div>
                                         <h3 style={{ fontSize: '0.875rem', fontWeight: '600', color: '#64748b', marginBottom: '0.25rem' }}>Fecha Programada</h3>
-                                        <p>{selectedOrder.fechaProgramada ? new Date(String(selectedOrder.fechaProgramada).replace(/-/g, '/')).toLocaleDateString() : 'N/A'}</p>
+                                        <p>{formatoFecha(selectedOrder.fechaProgramada)}</p>
                                     </div>
                                     <div>
                                         <h3 style={{ fontSize: '0.875rem', fontWeight: '600', color: '#64748b', marginBottom: '0.25rem' }}>Total</h3>
-                                        <p style={{ fontWeight: 'bold', color: '#4f46e5' }}>₡{selectedOrder.total?.toLocaleString() ?? 0}</p>
+                                        <p style={{ fontWeight: 'bold', color: '#4f46e5' }}>{formatoMoneda(selectedOrder.total)}</p>
                                     </div>
                                 </div>
 

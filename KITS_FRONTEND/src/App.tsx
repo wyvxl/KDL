@@ -1,15 +1,18 @@
-
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from './layouts/MainLayout';
-import Login from './pages/auth';
-import Dashboard from './pages/dashboard';
-import Products from './pages/products';
-import Clients from './pages/clients';
-import Orders from './pages/orders';
-import Users from './pages/users';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import { PERMISOS } from './utils/permisos';
 import './App.css';
+
+// Cada pantalla se descarga al entrar a ella: el login ya no carga el código de
+// pedidos, usuarios, etc. (antes todo iba en un único archivo JS).
+const Login = lazy(() => import('./pages/auth'));
+const Dashboard = lazy(() => import('./pages/dashboard'));
+const Products = lazy(() => import('./pages/products'));
+const Clients = lazy(() => import('./pages/clients'));
+const Orders = lazy(() => import('./pages/orders'));
+const Users = lazy(() => import('./pages/users'));
 
 /**
  * Componente Raíz de la Aplicación.
@@ -19,6 +22,7 @@ import './App.css';
 function App() {
   return (
     <BrowserRouter>
+      <Suspense fallback={<div className="loading-app">Cargando...</div>}>
       <Routes>
         {/* Ruta Pública: Login */}
         <Route path="/login" element={<Login />} />
@@ -45,6 +49,7 @@ function App() {
         {/* Redirección por defecto: Cualquier ruta desconocida va al inicio */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

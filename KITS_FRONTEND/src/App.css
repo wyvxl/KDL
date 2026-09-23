@@ -24,6 +24,20 @@ body {
   background-color: var(--color-bg);
 }
 
+/*
+ * Layout principal. 100dvh y no 100vh: en el celular 100vh incluye la barra del
+ * navegador y el final de la página quedaba tapado. width: 100% y no 100vw, que en
+ * escritorio suma el ancho de la barra de desplazamiento.
+ */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  width: 100%;
+  overflow: hidden;
+}
+
 /* Área de contenido del layout principal (debajo del navbar) */
 .main-area {
   flex: 1;
@@ -53,6 +67,14 @@ body {
   .main-area {
     padding: 1rem 0.75rem;
   }
+}
+
+/* Carga de una pantalla dentro del layout */
+.loading-page {
+  display: flex;
+  justify-content: center;
+  padding: 3rem 1rem;
+  color: var(--color-text-light);
 }
 
 /* Pantalla de carga inicial */

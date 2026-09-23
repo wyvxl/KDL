@@ -86,9 +86,10 @@ const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOpen, onC
                 boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)'
             }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                    <h2 style={{ margin: 0, color: 'var(--accent)' }}>Ajustar Stock</h2>
+                    <h2 className="app-modal-title">Ajustar Stock</h2>
                     <button
                         onClick={onClose}
+                        aria-label="Cerrar"
                         style={{
                             background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer',
                             color: 'var(--text-secondary)'

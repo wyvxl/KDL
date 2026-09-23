@@ -3,7 +3,7 @@
     padding: 2rem;
 }
 
-.header {
+.clients-page .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -54,12 +54,12 @@
     flex-grow: 1;
 }
 
-.info-row {
+.clients-page .info-row {
     margin-bottom: 0.5rem;
     color: var(--text-secondary);
 }
 
-.info-row span {
+.clients-page .info-row span {
     display: block;
 }
 
@@ -71,7 +71,7 @@
     justify-content: flex-end;
 }
 
-.empty-state {
+.clients-page .empty-state {
     text-align: center;
     width: 100%;
     padding: 2rem;
