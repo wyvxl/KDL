@@ -124,6 +124,12 @@ public class LUsuario extends Operations {
         if (usuario.getIdRol() == null) {
             throw new IllegalArgumentException("El rol del usuario es requerido");
         }
+        // Al editar, una contraseña nula conserva la actual (NVL en el procedimiento);
+        // al crear es obligatoria porque USUARIOS.contrasena es NOT NULL.
+        if (usuario.getIdUsuario() == null
+                && (usuario.getContrasena() == null || usuario.getContrasena().isBlank())) {
+            throw new IllegalArgumentException("La contraseña es requerida para un usuario nuevo");
+        }
 
         var parameters = new ArrayList<Parameter<?>>();
         // p_id nulo le indica al procedimiento que es un alta (INSERT); con un valor

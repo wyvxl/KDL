@@ -1,7 +1,9 @@
 package org.kits.entities;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.util.Date;
@@ -21,6 +23,7 @@ public class Usuario {
      * Nombre de usuario para el inicio de sesión.
      */
     @NotBlank(message = "El nombre de usuario es requerido")
+    @Size(max = 50, message = "El nombre de usuario admite hasta 50 caracteres")
     private String nombreUsuario;
     /**
      * Contraseña del usuario. Nota: en este proyecto (académico) se almacena en texto plano.
@@ -29,10 +32,14 @@ public class Usuario {
     /**
      * Correo electrónico del usuario.
      */
+    @NotBlank(message = "El email es requerido")
+    @Email(message = "El email no es válido")
+    @Size(max = 100, message = "El email admite hasta 100 caracteres")
     private String email;
     /**
      * Nombre completo del usuario.
      */
+    @Size(max = 150, message = "El nombre completo admite hasta 150 caracteres")
     private String nombreCompleto;
     /**
      * Estado del usuario ("S" para activo, "N" para inactivo).
