@@ -94,8 +94,10 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !url.includes('/usuario/autenticar')) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      // BASE_URL respeta la ruta de publicación (p. ej. /KDL/ en GitHub Pages).
+      const login = `${import.meta.env.BASE_URL}login`;
+      if (window.location.pathname !== login) {
+        window.location.href = login;
       }
     }
 
