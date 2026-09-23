@@ -114,11 +114,11 @@ BEGIN
     -- 3. PRODUCTOS (Catálogo completo para pruebas)
     -- ==============================================================================
     DBMS_OUTPUT.PUT_LINE('-- Creando Productos...');
-    PKG_PRODUCTOS.sp_op_gestionar_producto(NULL, 'Baguette Artesanal', 'Pan francés de masa madre', 1200, 50, 10, 'UNIDAD', 'S', v_id_prod_1);
-    PKG_PRODUCTOS.sp_op_gestionar_producto(NULL, 'Croissant de Mantequilla', 'Hojaldre 100% mantequilla', 1800, 30, 5, 'UNIDAD', 'S', v_id_prod_2);
-    PKG_PRODUCTOS.sp_op_gestionar_producto(NULL, 'Queque Seco Naranja', 'Barra de queque casero', 4500, 15, 3, 'UNIDAD', 'S', v_id_prod_3);
-    PKG_PRODUCTOS.sp_op_gestionar_producto(NULL, 'Empanada de Pollo', 'Horneada, no frita', 950, 100, 20, 'UNIDAD', 'S', v_id_prod_4);
-    PKG_PRODUCTOS.sp_op_gestionar_producto(NULL, 'Café Molido Tarrazú', 'Bolsa de 500gr premium', 5500, 20, 5, 'BOLSA', 'S', v_id_prod_5);
+    PKG_PRODUCTOS.sp_op_gestionar_producto(NULL, 'Baguette Artesanal', 'Pan francés de masa madre', 1200, 50, 10, 'unidad', 'S', v_id_prod_1);
+    PKG_PRODUCTOS.sp_op_gestionar_producto(NULL, 'Croissant de Mantequilla', 'Hojaldre 100% mantequilla', 1800, 30, 5, 'unidad', 'S', v_id_prod_2);
+    PKG_PRODUCTOS.sp_op_gestionar_producto(NULL, 'Queque Seco Naranja', 'Barra de queque casero', 4500, 15, 3, 'unidad', 'S', v_id_prod_3);
+    PKG_PRODUCTOS.sp_op_gestionar_producto(NULL, 'Empanada de Pollo', 'Horneada, no frita', 950, 100, 20, 'unidad', 'S', v_id_prod_4);
+    PKG_PRODUCTOS.sp_op_gestionar_producto(NULL, 'Café Molido Tarrazú', 'Bolsa de 500gr premium', 5500, 20, 5, 'bolsa', 'S', v_id_prod_5);
     
     -- Ajuste de Stock (Para probar sp_ajustar_stock)
     PKG_PRODUCTOS.sp_op_ajustar_stock(v_id_prod_1, 5, 'SALIDA'); -- Stock 50 -> 45

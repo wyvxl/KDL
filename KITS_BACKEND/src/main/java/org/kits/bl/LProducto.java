@@ -8,7 +8,6 @@ import org.kits.entities.Producto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.math.BigDecimal;
 import java.sql.Types;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -40,12 +39,12 @@ public class LProducto extends Operations {
         if (result != null) {
             for (Map<String, Object> row : result) {
                 Producto p = new Producto();
-                p.setIdProducto(((BigDecimal) row.get("id_producto")).intValue());
+                p.setIdProducto(toInt(row.get("id_producto")));
                 p.setNombre((String) row.get("nombre"));
                 p.setDescripcion((String) row.get("descripcion"));
-                p.setPrecio(((BigDecimal) row.get("precio")).doubleValue());
-                p.setStockActual(((BigDecimal) row.get("stock_actual")).intValue());
-                p.setStockMinimo(((BigDecimal) row.get("stock_minimo")).intValue());
+                p.setPrecio(toDouble(row.get("precio")));
+                p.setStockActual(toInt(row.get("stock_actual")));
+                p.setStockMinimo(toInt(row.get("stock_minimo")));
                 p.setUnidadMedida((String) row.get("unidad_medida"));
                 p.setActivo((String) row.get("activo")); // Mapear el campo activo
                 productos.add(p);
@@ -69,12 +68,12 @@ public class LProducto extends Operations {
         if (result != null && !result.isEmpty()) {
             Map<String, Object> row = result.getFirst();
             Producto p = new Producto();
-            p.setIdProducto(((BigDecimal) row.get("id_producto")).intValue());
+            p.setIdProducto(toInt(row.get("id_producto")));
             p.setNombre((String) row.get("nombre"));
             p.setDescripcion((String) row.get("descripcion"));
-            p.setPrecio(((BigDecimal) row.get("precio")).doubleValue());
-            p.setStockActual(((BigDecimal) row.get("stock_actual")).intValue());
-            p.setStockMinimo(((BigDecimal) row.get("stock_minimo")).intValue());
+            p.setPrecio(toDouble(row.get("precio")));
+            p.setStockActual(toInt(row.get("stock_actual")));
+            p.setStockMinimo(toInt(row.get("stock_minimo")));
             p.setUnidadMedida((String) row.get("unidad_medida"));
             p.setActivo((String) row.get("activo")); // Mapear el campo activo
             return p;

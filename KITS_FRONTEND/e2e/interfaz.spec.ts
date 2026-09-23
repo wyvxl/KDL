@@ -52,6 +52,29 @@ test('los botones de guardar de los modales quedan a la vista', async ({ page })
   await expect(page.getByRole('dialog').getByRole('button', { name: 'Crear Pedido' })).toBeInViewport();
 });
 
+test('editar un producto con unidad en mayúsculas conserva la unidad', async ({ page }) => {
+  // El script de carga guardaba 'UNIDAD'/'BOLSA' y el select solo tenía valores en minúscula.
+  await simularBackend(page, 'ADMIN', {
+    productos: [{ idProducto: 1, nombre: 'Café Molido', descripcion: '', precio: 5500, stockActual: 20, stockMinimo: 5, unidadMedida: 'BOLSA', activo: 'S' }],
+  });
+  await iniciarSesion(page, 'ADMIN');
+
+  await page.goto('/productos');
+  await page.getByRole('button', { name: 'Editar' }).first().click();
+
+  await expect(page.getByLabel('Unidad de Medida *')).toHaveValue('bolsa');
+});
+
+test('el teléfono del cliente es obligatorio, como en la base de datos', async ({ page }) => {
+  await simularBackend(page, 'ADMIN');
+  await iniciarSesion(page, 'ADMIN');
+
+  await page.goto('/clientes');
+  await page.getByRole('button', { name: /nuevo cliente/i }).click();
+
+  await expect(page.getByLabel('Teléfono *')).toHaveAttribute('required', '');
+});
+
 test('los botones de activar/desactivar usuario conservan su color', async ({ page }) => {
   // Los modales reimportaban index.css; al cargar su CSS después del de la página,
   // .btn-secondary volvía a ganar y estos botones quedaban blancos.

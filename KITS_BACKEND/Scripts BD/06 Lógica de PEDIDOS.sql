@@ -257,8 +257,11 @@ BEGIN
         WHERE id_pedido = p_id_pedido;
     ELSE
         -- CREAR: Insertar nueva cabecera
-        INSERT INTO PEDIDOS (id_cliente, id_usuario_responsable, fecha_pedido, fecha_programada, estado, pagado)
-        VALUES (p_id_cliente, p_id_usuario, CURRENT_TIMESTAMP, p_fecha_prog, NVL(p_estado, 'PENDIENTE'), NVL(p_pagado, 'N'))
+        -- Un pedido cargado ya ENTREGADO (datos de prueba, correcciones) necesita su
+        -- fecha de entrega: si no, no aparece en "Finalizados hoy" del dashboard.
+        INSERT INTO PEDIDOS (id_cliente, id_usuario_responsable, fecha_pedido, fecha_programada, estado, pagado, fecha_entrega)
+        VALUES (p_id_cliente, p_id_usuario, CURRENT_TIMESTAMP, p_fecha_prog, NVL(p_estado, 'PENDIENTE'), NVL(p_pagado, 'N'),
+                CASE WHEN p_estado = 'ENTREGADO' THEN CURRENT_TIMESTAMP END)
         RETURNING id_pedido INTO v_id_pedido;
     END IF;
 
@@ -314,7 +317,7 @@ BEGIN
         OR (v_estado_actual = 'EN_PROCESO' AND p_estado IN ('LISTO', 'CANCELADO'))
         OR (v_estado_actual = 'LISTO'      AND p_estado IN ('ENTREGADO', 'CANCELADO'))
     ) THEN
-        RAISE_APPLICATION_ERROR(-20005,
+        RAISE_APPLICATION_ERROR(-20008,
             'No se puede pasar un pedido de ' || v_estado_actual || ' a ' || NVL(p_estado, '(vacío)') || '.');
     END IF;
 
@@ -373,7 +376,7 @@ BEGIN
     -- Un pedido entregado es historial de ventas y su producto ya salió de la
     -- panadería: borrarlo devolvía ese stock al inventario.
     IF v_estado_actual = 'ENTREGADO' THEN
-        RAISE_APPLICATION_ERROR(-20006, 'No se puede eliminar un pedido ENTREGADO.');
+        RAISE_APPLICATION_ERROR(-20009, 'No se puede eliminar un pedido ENTREGADO.');
     END IF;
 
     -- Si el pedido ya había salido del inventario, devolverlo antes de borrar

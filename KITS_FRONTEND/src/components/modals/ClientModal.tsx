@@ -125,6 +125,7 @@ const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onClientAdde
                 id="cliente-nombre"
                 type="text"
                 required
+                maxLength={150}
                 className="field-input"
                 value={formData.nombre}
                 onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
@@ -133,10 +134,12 @@ const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onClientAdde
 
             <div className="field-row">
               <div>
-                <label className="field-label" htmlFor="cliente-telefono">Teléfono</label>
+                <label className="field-label" htmlFor="cliente-telefono">Teléfono *</label>
                 <input
                   id="cliente-telefono"
                   type="tel"
+                  required
+                  maxLength={20}
                   autoComplete="tel"
                   className="field-input"
                   value={formData.telefono}
@@ -149,6 +152,7 @@ const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onClientAdde
                 <input
                   id="cliente-email"
                   type="email"
+                  maxLength={100}
                   autoComplete="email"
                   className="field-input"
                   value={formData.email}
@@ -162,6 +166,7 @@ const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onClientAdde
               <input
                 id="cliente-direccion"
                 type="text"
+                maxLength={300}
                 className="field-input"
                 value={formData.direccion}
                 onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
@@ -172,6 +177,7 @@ const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onClientAdde
               <label className="field-label" htmlFor="cliente-notas">Notas</label>
               <textarea
                 id="cliente-notas"
+                maxLength={500}
                 className="field-input"
                 value={formData.notas}
                 onChange={(e) => setFormData({ ...formData, notas: e.target.value })}

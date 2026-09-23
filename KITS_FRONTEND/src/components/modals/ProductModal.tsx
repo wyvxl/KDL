@@ -40,7 +40,9 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onProductA
         precio: product.precio.toString(),
         stockActual: product.stockActual.toString(),
         stockMinimo: product.stockMinimo.toString(),
-        unidadMedida: product.unidadMedida,
+        // Las opciones del select van en minúsculas; datos antiguos traen 'UNIDAD'/'BOLSA'
+        // y el select quedaba en "Seleccionar unidad", obligando a elegirla de nuevo.
+        unidadMedida: product.unidadMedida?.toLowerCase() ?? '',
         activo: product.activo || 'S' // Cargar estado activo del producto existente
       });
     } else {
@@ -135,6 +137,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onProductA
                 id="producto-nombre"
                 type="text"
                 required
+                maxLength={100}
                 className="field-input"
                 value={formData.nombre}
                 onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
@@ -146,6 +149,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onProductA
               <label className="field-label" htmlFor="producto-descripcion">Descripción</label>
               <textarea
                 id="producto-descripcion"
+                maxLength={300}
                 className="field-input"
                 value={formData.descripcion}
                 onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
@@ -189,6 +193,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onProductA
                   <option value="ml">Mililitro</option>
                   <option value="metro">Metro</option>
                   <option value="cm">Centímetro</option>
+                  <option value="bolsa">Bolsa</option>
                   <option value="caja">Caja</option>
                   <option value="paquete">Paquete</option>
                   <option value="docena">Docena</option>
