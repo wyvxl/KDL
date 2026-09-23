@@ -9,6 +9,7 @@ import { mensajeDeError } from '../../utils/errorHandler';
 import { useToast } from '../../hooks/useToast';
 import Toast from '../../components/ui/Toast';
 import './Orders.css';
+import { formatoFecha, formatoMoneda } from '../../utils/formato';
 
 // Componente de página para gestión de Pedidos
 const Orders: React.FC = () => {
@@ -38,25 +39,6 @@ const Orders: React.FC = () => {
     const [filtroCliente, setFiltroCliente] = useState<string>('');
     const [mostrarFiltros, setMostrarFiltros] = useState<boolean>(false);
     const { toast, showToast, hideToast } = useToast();
-
-    /**
-     * Formatea una fecha a un string 'DD/MM/YYYY'.
-     * Soluciona el problema de zona horaria al interpretar fechas 'YYYY-MM-DD' como UTC.
-     * @param value La fecha a formatear (puede ser string, Date, etc.).
-     * @returns La fecha formateada o 'N/A' si el valor no es válido.
-     */
-    const formatDate = (value?: string | number | null | Date): string => {
-        if (value === null || value === undefined || value === '') return 'N/A';
-        // Reemplazar guiones con slashes para que JS lo interprete como fecha local, no UTC.
-        const date = new Date(String(value).replace(/-/g, '/'));
-        if (isNaN(date.getTime())) return 'N/A';
-
-        return date.toLocaleDateString('es-CR', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-        });
-    };
 
     // Función asíncrona para obtener la lista de pedidos desde el backend
     const loadPedidos = async () => {
@@ -462,13 +444,13 @@ const Orders: React.FC = () => {
                                         <div className="detail-item">
                                             <span className="detail-label">Fecha Creación:</span>
                                             <span className="detail-value">
-                                                {formatDate(pedido.fechaPedido)}
+                                                {formatoFecha(pedido.fechaPedido)}
                                             </span>
                                         </div>
                                         <div className="detail-item">
                                             <span className="detail-label">Fecha Programada:</span>
                                             <span className="detail-value">
-                                                {formatDate(pedido.fechaProgramada)}
+                                                {formatoFecha(pedido.fechaProgramada)}
                                             </span>
                                         </div>
                                     </div>
@@ -478,7 +460,7 @@ const Orders: React.FC = () => {
                                             <div className="detail-item">
                                                 <span className="detail-label">Fecha Entrega:</span>
                                                 <span className="detail-value">
-                                                    {formatDate(pedido.fechaEntrega)}
+                                                    {formatoFecha(pedido.fechaEntrega)}
                                                 </span>
                                             </div>
                                         </div>
@@ -523,7 +505,7 @@ const Orders: React.FC = () => {
                                                                     Cant: {detalle.cantidad}
                                                                 </span>
                                                                 <span style={{ marginLeft: '1rem', fontWeight: 'bold' }}>
-                                                                    ₡{detalle.precioUnitario.toFixed(2)}
+                                                                    {formatoMoneda(detalle.precioUnitario)}
                                                                 </span>
                                                             </div>
                                                         ))
@@ -545,7 +527,7 @@ const Orders: React.FC = () => {
                                     )}
 
                                     <div className="order-total">
-                                        <strong>Total: ₡{pedido.total.toFixed(2)}</strong>
+                                        <strong>Total: {formatoMoneda(pedido.total)}</strong>
                                     </div>
                                 </div>
 

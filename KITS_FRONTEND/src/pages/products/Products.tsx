@@ -5,6 +5,7 @@ import { ProductModal, StockAdjustmentModal } from '../../components/modals';
 import { PERMISOS, tienePermiso } from '../../utils/permisos';
 import { AlertTriangle } from 'lucide-react';
 import './Products.css';
+import { formatoMoneda } from '../../utils/formato';
 
 /**
  * Página de Gestión de Productos.
@@ -239,7 +240,7 @@ const Products: React.FC = () => {
                             </div>
                             <div className="product-info">
                                 <div className="info-row">
-                                     <span className="price">₡{producto.precio.toFixed(2)}</span>
+                                     <span className="price">{formatoMoneda(producto.precio)}</span>
                                 </div>
                                 <div className="info-row">
                                     <span>Stock: {producto.stockActual}</span>
