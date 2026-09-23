@@ -8,6 +8,7 @@ import Clients from './pages/clients';
 import Orders from './pages/orders';
 import Users from './pages/users';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import { PERMISOS } from './utils/permisos';
 import './App.css';
 
 /**
@@ -35,10 +36,10 @@ function App() {
           <Route index element={<Dashboard />} />
 
           {/* Módulos de gestión */}
-          <Route path="productos" element={<Products />} />
-          <Route path="clientes" element={<Clients />} />
-          <Route path="pedidos" element={<Orders />} />
-          <Route path="usuarios" element={<Users />} />
+          <Route path="productos" element={<ProtectedRoute permiso={PERMISOS.VER_PRODUCTOS}><Products /></ProtectedRoute>} />
+          <Route path="clientes" element={<ProtectedRoute permiso={PERMISOS.VER_CLIENTES}><Clients /></ProtectedRoute>} />
+          <Route path="pedidos" element={<ProtectedRoute permiso={PERMISOS.VER_PEDIDOS}><Orders /></ProtectedRoute>} />
+          <Route path="usuarios" element={<ProtectedRoute permiso={PERMISOS.VER_USUARIOS}><Users /></ProtectedRoute>} />
         </Route>
 
         {/* Redirección por defecto: Cualquier ruta desconocida va al inicio */}

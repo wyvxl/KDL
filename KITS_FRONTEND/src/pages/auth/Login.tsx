@@ -45,9 +45,11 @@ const Login: FC = () => {
                 <form onSubmit={handleLogin} className="login-form">
                     {/* Campo Usuario */}
                     <div className="form-group">
-                        <label className="form-label">Usuario</label>
+                        <label className="form-label" htmlFor="login-usuario">Usuario</label>
                         <input
+                            id="login-usuario"
                             type="text"
+                            autoComplete="username"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             className="form-input"
@@ -56,9 +58,11 @@ const Login: FC = () => {
                     </div>
                     {/* Campo Contraseña */}
                     <div className="form-group">
-                        <label className="form-label">Contraseña</label>
+                        <label className="form-label" htmlFor="login-contrasena">Contraseña</label>
                         <input
+                            id="login-contrasena"
                             type="password"
+                            autoComplete="current-password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             className="form-input"

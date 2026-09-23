@@ -291,11 +291,38 @@ CREATE OR REPLACE PROCEDURE sp_actualizar_estado_pedido (
     p_id_usuario IN PEDIDOS.ID_USUARIO_RESPONSABLE%TYPE DEFAULT NULL,
     p_resultado  OUT NUMBER
 ) AS
+    v_estado_actual PEDIDOS.ESTADO%TYPE;
 BEGIN
+    BEGIN
+        SELECT estado INTO v_estado_actual
+        FROM PEDIDOS WHERE id_pedido = p_id_pedido FOR UPDATE;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            p_resultado := 0;
+            RETURN;
+    END;
+
+    -- Solo se permite avanzar por el flujo normal o cancelar un pedido activo.
+    -- Sin esto, ENTREGADO -> CANCELADO devolvía al inventario pan ya entregado y
+    -- CANCELADO -> EN_PROCESO revivía pedidos anulados.
+    --   PENDIENTE  -> EN_PROCESO | CANCELADO
+    --   EN_PROCESO -> LISTO      | CANCELADO
+    --   LISTO      -> ENTREGADO  | CANCELADO
+    --   ENTREGADO y CANCELADO son estados finales.
+    IF NOT (
+           (v_estado_actual = 'PENDIENTE'  AND p_estado IN ('EN_PROCESO', 'CANCELADO'))
+        OR (v_estado_actual = 'EN_PROCESO' AND p_estado IN ('LISTO', 'CANCELADO'))
+        OR (v_estado_actual = 'LISTO'      AND p_estado IN ('ENTREGADO', 'CANCELADO'))
+    ) THEN
+        RAISE_APPLICATION_ERROR(-20005,
+            'No se puede pasar un pedido de ' || v_estado_actual || ' a ' || NVL(p_estado, '(vacío)') || '.');
+    END IF;
+
     UPDATE PEDIDOS
     SET estado = p_estado,
         fecha_entrega = CASE WHEN p_estado = 'ENTREGADO' THEN CURRENT_TIMESTAMP ELSE fecha_entrega END,
-        id_usuario_responsable = NVL(p_id_usuario, id_usuario_responsable) -- Actualizar usuario si se provee
+        -- El responsable (quien tomó el pedido) no cambia; se registra aparte quién lo movió.
+        id_usuario_ultimo_cambio = NVL(p_id_usuario, id_usuario_ultimo_cambio)
     WHERE id_pedido = p_id_pedido;
 
     p_resultado := SQL%ROWCOUNT;
@@ -332,7 +359,23 @@ CREATE OR REPLACE PROCEDURE sp_eliminar_pedido (
     p_id_pedido IN PEDIDOS.ID_PEDIDO%TYPE,
     p_resultado OUT NUMBER
 ) AS
+    v_estado_actual PEDIDOS.ESTADO%TYPE;
 BEGIN
+    BEGIN
+        SELECT estado INTO v_estado_actual
+        FROM PEDIDOS WHERE id_pedido = p_id_pedido FOR UPDATE;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            p_resultado := 0;
+            RETURN;
+    END;
+
+    -- Un pedido entregado es historial de ventas y su producto ya salió de la
+    -- panadería: borrarlo devolvía ese stock al inventario.
+    IF v_estado_actual = 'ENTREGADO' THEN
+        RAISE_APPLICATION_ERROR(-20006, 'No se puede eliminar un pedido ENTREGADO.');
+    END IF;
+
     -- Si el pedido ya había salido del inventario, devolverlo antes de borrar
     -- las líneas (después ya no se sabría qué devolver).
     sp_revertir_stock_pedido(p_id_pedido);

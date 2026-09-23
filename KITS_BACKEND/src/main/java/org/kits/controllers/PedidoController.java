@@ -7,10 +7,12 @@ import org.kits.entities.DetallePedido;
 import org.kits.entities.Pedido;
 import org.kits.entities.Cliente;
 import org.kits.entities.Usuario;
+import org.kits.security.PermisosPedido;
 import org.kits.security.UsuarioAutenticado;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -96,7 +98,8 @@ public class PedidoController {
             throw new IllegalArgumentException("El cuerpo debe incluir el objeto 'pedido'");
         }
 
-        Pedido pedido = mapToPedido(pedidoData, idUsuarioAutenticado(authentication));
+        Pedido pedido = mapToPedido(pedidoData, idUsuarioAutenticado(authentication),
+                PermisosPedido.puedeFijarEstadoAlGuardar(authentication));
         List<DetallePedidoArray> detalles = mapToDetalles(detallesData);
 
         // Los errores de negocio (stock insuficiente, pedido ya no editable) los traduce
@@ -118,7 +121,7 @@ public class PedidoController {
         return idUsuario;
     }
 
-    private Pedido mapToPedido(Map<String, Object> data, Integer idUsuarioResponsable) {
+    private Pedido mapToPedido(Map<String, Object> data, Integer idUsuarioResponsable, boolean aceptaEstado) {
         Pedido pedido = new Pedido();
 
         // Mapear ID del pedido si existe (para edición)
@@ -139,11 +142,13 @@ public class PedidoController {
         }
         pedido.setFechaProgramada(parsearFechaProgramada(fechaObj));
 
-        String estado = (String) data.get("estado");
-        pedido.setEstado(estado != null ? estado : "PENDIENTE");
+        // Solo el administrador puede guardar un pedido directamente en otro estado; para
+        // el resto nace PENDIENTE y avanza con PUT /pedido/{id}/estado, que valida el flujo.
+        // (La BD de todos modos solo deja editar pedidos PENDIENTE.)
+        String estado = aceptaEstado && data.get("estado") instanceof String texto ? texto : "PENDIENTE";
+        pedido.setEstado(estado);
 
-        Boolean pagado = (Boolean) data.get("pagado");
-        pedido.setPagado(pagado != null ? pagado : false);
+        pedido.setPagado(Boolean.TRUE.equals(data.get("pagado")));
 
         return pedido;
     }
@@ -228,9 +233,11 @@ public class PedidoController {
             @PathVariable("id") int idPedido,
             @RequestBody Map<String, Object> payload,
             Authentication authentication) {
-        String estado = (String) payload.get("estado");
-        if (estado == null || estado.isBlank()) {
+        if (!(payload.get("estado") instanceof String estado) || estado.isBlank()) {
             throw new IllegalArgumentException("estado es requerido");
+        }
+        if (!PermisosPedido.puedeCambiarA(authentication, estado)) {
+            throw new AccessDeniedException("Tu rol no puede pasar pedidos a " + estado);
         }
         return ResponseEntity.ok(
                 this.logica.ActualizarEstado(idPedido, estado, idUsuarioAutenticado(authentication)));

@@ -26,12 +26,11 @@ public class Operations {
         return connection;
     }
 
+    // La comprobación de conectividad al arrancar vive en VerificacionBaseDatos: aquí se
+    // repetía una vez por cada clase de lógica y no se podía desactivar en las pruebas.
     @Autowired
     public Operations(ConnectionManager connection) {
         this.connection = connection;
-        if (!this.connection.Connect()) {
-            throw new RuntimeException("Failed to connect to the database. Check the database configuration and connectivity.");
-        }
     }
 
     // Métodos protegidos.

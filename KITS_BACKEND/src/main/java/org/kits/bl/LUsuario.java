@@ -75,6 +75,27 @@ public class LUsuario extends Operations {
     }
 
     /**
+     * Busca un usuario activo por id.
+     *
+     * <p>Lo usa el filtro JWT en cada petición para que un usuario desactivado, o al que
+     * le cambiaron el rol, no pueda seguir usando un token emitido antes del cambio.</p>
+     *
+     * @param idUsuario Id del usuario
+     * @return el usuario (con su rol actual), o {@code null} si no existe o está inactivo
+     */
+    public Usuario ConsultarActivoPorId(int idUsuario) {
+        var parameters = new ArrayList<Parameter<?>>();
+        parameters.add(new Parameter<>("p_id", idUsuario, Types.NUMERIC));
+        parameters.add(createResponseParameter());
+
+        List<Map<String, Object>> result = executeQuery("PKG_USUARIOS.sp_op_consultar_usuario_id", parameters);
+        if (result != null && !result.isEmpty()) {
+            return mapRowToUsuario(result.getFirst());
+        }
+        return null;
+    }
+
+    /**
      * Lista todos los usuarios.
      *
      * @return Lista de usuarios
