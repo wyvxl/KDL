@@ -7,7 +7,6 @@ import org.kits.entities.Cliente;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.math.BigDecimal;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,14 +42,14 @@ public class LCliente extends Operations {
         if (result != null) {
             for (Map<String, Object> row : result) {
                 Cliente c = new Cliente();
-                c.setIdCliente(((BigDecimal) row.get("id_cliente")).intValue());
+                c.setIdCliente(toInt(row.get("id_cliente")));
                 c.setNombre((String) row.get("nombre"));
                 c.setTelefono((String) row.get("telefono"));
                 c.setDireccion((String) row.get("direccion"));
                 c.setEmail((String) row.get("email"));
                 c.setNotas((String) row.get("notas"));
                 c.setActivo((String) row.get("activo"));
-                c.setFechaRegistro(row.get("fecha_registro").toString());
+                c.setFechaRegistro(String.valueOf(row.get("fecha_registro")));
                 clientes.add(c);
             }
         }
@@ -72,14 +71,14 @@ public class LCliente extends Operations {
         if (result != null && !result.isEmpty()) {
             Map<String, Object> row = result.getFirst();
             Cliente c = new Cliente();
-            c.setIdCliente(((BigDecimal) row.get("id_cliente")).intValue());
+            c.setIdCliente(toInt(row.get("id_cliente")));
             c.setNombre((String) row.get("nombre"));
             c.setTelefono((String) row.get("telefono"));
             c.setDireccion((String) row.get("direccion"));
             c.setEmail((String) row.get("email"));
             c.setNotas((String) row.get("notas"));
             c.setActivo((String) row.get("activo"));
-            c.setFechaRegistro(row.get("fecha_registro").toString());
+            c.setFechaRegistro(String.valueOf(row.get("fecha_registro")));
             return c;
         }
         throw new RuntimeException("Cliente no encontrado: " + idCliente);

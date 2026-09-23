@@ -32,7 +32,9 @@ public class GlobalExceptionHandler {
                 .forEach(error -> errores.put(error.getField(), error.getDefaultMessage()));
 
         Map<String, Object> body = new HashMap<>();
-        body.put("error", "Datos inválidos");
+        // El frontend muestra "error": con solo "Datos inválidos" el usuario no sabía qué
+        // campo corregir. Los mensajes van también en "detalles" por campo.
+        body.put("error", errores.isEmpty() ? "Datos inválidos" : String.join(". ", errores.values()));
         body.put("detalles", errores);
         return ResponseEntity.badRequest().body(body);
     }
@@ -69,6 +71,13 @@ public class GlobalExceptionHandler {
         String mensajeNegocio = extraerErrorDeNegocio(mensaje);
         if (mensajeNegocio != null) {
             return ResponseEntity.badRequest().body(Map.of("error", mensajeNegocio));
+        }
+
+        // ORA-00001: UNIQUE violado (nombre de usuario, email o nombre de rol repetido).
+        // Es un error del dato, no del servidor.
+        if (mensaje != null && mensaje.contains("ORA-00001")) {
+            return ResponseEntity.badRequest().body(Map.of("error",
+                    "Ya existe un registro con ese valor (por ejemplo, un nombre de usuario o email repetido)."));
         }
 
         LOGGER.severe("Error no controlado: " + mensaje);
