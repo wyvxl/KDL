@@ -1,5 +1,7 @@
 package org.kits.security;
 
+import org.kits.bl.LUsuario;
+import org.kits.entities.Usuario;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -46,10 +48,13 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtUtil jwtUtil;
+    private final LUsuario usuarios;
     private final String corsAllowedOrigin;
 
-    public SecurityConfig(JwtUtil jwtUtil, @Value("${app.cors.allowed-origin}") String corsAllowedOrigin) {
+    public SecurityConfig(JwtUtil jwtUtil, LUsuario usuarios,
+                          @Value("${app.cors.allowed-origin}") String corsAllowedOrigin) {
         this.jwtUtil = jwtUtil;
+        this.usuarios = usuarios;
         this.corsAllowedOrigin = corsAllowedOrigin;
     }
 
@@ -99,8 +104,14 @@ public class SecurityConfig {
                 )
                 // Para una API stateless: 401 cuando falta/expira el token en vez de redirigir.
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
-                .addFilterBefore(new JwtAuthFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new JwtAuthFilter(jwtUtil, this::rolVigente), UsernamePasswordAuthenticationFilter.class);
         return http.build();
+    }
+
+    /** Rol actual del usuario en la BD, o {@code null} si no existe o está desactivado. */
+    private String rolVigente(int idUsuario) {
+        Usuario usuario = usuarios.ConsultarActivoPorId(idUsuario);
+        return usuario != null ? usuario.getNombreRol() : null;
     }
 
     @Bean

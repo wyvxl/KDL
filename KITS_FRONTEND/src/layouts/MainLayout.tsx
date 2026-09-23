@@ -13,7 +13,7 @@ const MainLayout = () => {
             <Navbar />
 
             {/* Área principal donde se renderizan las páginas hijas (Outlet) */}
-            <main style={{ flex: 1, overflow: 'auto', padding: '2rem', backgroundColor: 'var(--bg-primary)' }}>
+            <main className="main-area">
                 <Outlet />
             </main>
         </div>
