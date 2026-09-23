@@ -21,7 +21,8 @@ const Users = lazy(() => import('./pages/users'));
  */
 function App() {
   return (
-    <BrowserRouter>
+    // basename: en GitHub Pages la app no está en la raíz sino en /KDL/ (VITE_BASE).
+    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
       <Suspense fallback={<div className="loading-app">Cargando...</div>}>
       <Routes>
         {/* Ruta Pública: Login */}

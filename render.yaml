@@ -1,0 +1,33 @@
+# Blueprint de Render: crea el servicio del backend al importar este repo en
+# https://dashboard.render.com/blueprints  (ver DESPLIEGUE.md).
+services:
+  - type: web
+    name: kits-backend
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerContext: ./KITS_BACKEND
+    dockerfilePath: ./KITS_BACKEND/Dockerfile
+    # Solo se vuelve a desplegar cuando cambia el backend, no con cambios del front.
+    buildFilter:
+      paths:
+        - KITS_BACKEND/**
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # Render genera un secreto aleatorio: nunca se usa el valor por defecto del repo.
+      - key: JWT_SECRET
+        generateValue: true
+      # Origen del frontend publicado (sin la ruta /KDL/).
+      - key: CORS_ALLOWED_ORIGIN
+        value: https://wyvxl.github.io
+      # Autonomous Database Always Free limita las sesiones simultáneas.
+      - key: DB_POOL_SIZE
+        value: "5"
+      # Estos tres se piden al crear el servicio (sync: false = no se guardan en el repo).
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false

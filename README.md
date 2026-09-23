@@ -82,6 +82,11 @@ Corren en escritorio y en tamaño de celular, con la zona horaria de Costa Rica.
 Los crea el script 12, todos con contraseña `1234`: `admin`, `vendedor`, `panadero`,
 `repartidor`.
 
+### En línea
+
+Para publicarlo gratis (Oracle Autonomous Database + Render + GitHub Pages) ver
+[DESPLIEGUE.md](DESPLIEGUE.md).
+
 ## Roles
 
 La autorización se resuelve por **nombre** de rol, no por id: los ids de `ROLES` son
