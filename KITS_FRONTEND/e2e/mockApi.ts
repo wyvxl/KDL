@@ -38,6 +38,7 @@ export const pedido = (id: number, fechaProgramada: string, estado = 'PENDIENTE'
 interface Datos {
   pedidos?: unknown[];
   productos?: unknown[];
+  clientes?: unknown[];
 }
 
 /**
@@ -58,6 +59,7 @@ export async function simularBackend(page: Page, rol: Rol, datos: Datos = {}) {
     }
     if (url.pathname === '/pedido') return json(datos.pedidos ?? []);
     if (url.pathname === '/producto') return json(datos.productos ?? []);
+    if (url.pathname === '/cliente') return json(datos.clientes ?? []);
     return json([]);
   });
 }

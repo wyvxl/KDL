@@ -4,14 +4,14 @@
     margin: 0 auto;
 }
 
-.header {
+.orders-page .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 2rem;
 }
 
-.header h1 {
+.orders-page .header h1 {
     font-size: 2rem;
     margin: 0;
     font-weight: 700;
@@ -24,7 +24,7 @@
     gap: 1.5rem;
 }
 
-.empty-state {
+.orders-page .empty-state {
     color: var(--color-text-light);
     text-align: center;
     padding: 3rem;
@@ -154,27 +154,27 @@
     text-transform: uppercase;
 }
 
-.status-pendiente {
+.status.status-pendiente {
     background-color: var(--color-warning);
     color: white;
 }
 
-.status-en-proceso {
+.status.status-en-proceso {
     background-color: var(--color-info);
     color: white;
 }
 
-.status-listo {
+.status.status-listo {
     background-color: var(--color-success);
     color: white;
 }
 
-.status-entregado {
+.status.status-entregado {
     background-color: var(--color-success);
     color: white;
 }
 
-.status-cancelado {
+.status.status-cancelado {
     background-color: var(--color-text-light);
     color: white;
 }
@@ -188,13 +188,13 @@
         grid-template-columns: 1fr;
     }
 
-    .header {
+    .orders-page .header {
         flex-direction: column;
         gap: 1rem;
         align-items: stretch;
     }
 
-    .header button {
+    .orders-page .header button {
         width: 100%;
     }
 

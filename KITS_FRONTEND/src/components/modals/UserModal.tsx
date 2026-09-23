@@ -177,75 +177,63 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, usuario 
   if (!isOpen) return null;
 
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        backgroundColor: '#FFFFFF', padding: '2rem', borderRadius: '12px',
-        width: '90%', maxWidth: '500px',
-        maxHeight: '80vh',
-        display: 'flex', flexDirection: 'column',
-        border: '1px solid var(--border)',
-        boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)'
-      }}>
-        <h2 style={{ marginBottom: '1.5rem', color: 'var(--accent)', flexShrink: 0 }}>
-          {usuario ? 'Editar Usuario' : 'Nuevo Usuario'}
-        </h2>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-          <div style={{ flex: 1, overflowY: 'auto', paddingRight: '1rem' }}>
-
-            <div className="form-group">
-              <label>Nombre de Usuario *</label>
+    <div className="app-modal-overlay">
+      <div className="app-modal" role="dialog" aria-modal="true" aria-labelledby="user-modal-title">
+        <div className="app-modal-header">
+          <h2 id="user-modal-title" className="app-modal-title">
+            {usuario ? 'Editar Usuario' : 'Nuevo Usuario'}
+          </h2>
+        </div>
+        <form onSubmit={handleSubmit} className="app-modal-form">
+          <div className="app-modal-body">
+            <div>
+              <label className="field-label" htmlFor="usuario-nombre-usuario">Nombre de Usuario *</label>
               <input
+                id="usuario-nombre-usuario"
                 type="text" name="nombreUsuario"
+                className="field-input"
+                autoComplete="off"
                 value={formData.nombreUsuario ?? ''}
                 onChange={handleChange}
                 disabled={!!usuario}
                 required
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #D1D5DB', backgroundColor: '#F9FAFB', color: 'var(--text-primary)' }}
               />
             </div>
 
-            <div className="form-group">
-              <label>Nombre Completo *</label>
+            <div>
+              <label className="field-label" htmlFor="usuario-nombre-completo">Nombre Completo *</label>
               <input
+                id="usuario-nombre-completo"
                 type="text" name="nombreCompleto"
+                className="field-input"
                 value={formData.nombreCompleto ?? ''}
                 onChange={handleChange}
                 required
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #D1D5DB', backgroundColor: '#F9FAFB', color: 'var(--text-primary)' }}
               />
             </div>
 
-            <div className="form-group">
-              <label>Email *</label>
+            <div>
+              <label className="field-label" htmlFor="usuario-email">Email *</label>
               <input
+                id="usuario-email"
                 type="email" name="email"
+                className="field-input"
                 value={formData.email ?? ''}
                 onChange={handleChange}
                 required
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #D1D5DB', backgroundColor: '#F9FAFB', color: 'var(--text-primary)' }}
               />
             </div>
 
-            <div className="form-group">
-              <label>Rol *</label>
+            <div>
+              <label className="field-label" htmlFor="usuario-rol">Rol *</label>
               <select
+                id="usuario-rol"
                 name="idRol"
+                className="field-input"
                 value={formData.idRol ?? ''}
                 onChange={handleChange}
                 required
                 disabled={roles.length === 0}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  borderRadius: '8px',
-                  border: '1px solid #D1D5DB',
-                  backgroundColor: '#F9FAFB',
-                  color: 'var(--text-primary)'
-                }}
               >
                 <option value="">Seleccionar rol</option>
                 {roles.map(rol => (
@@ -257,27 +245,29 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, usuario 
             </div>
 
             {!usuario && (
-              <div className="form-group">
-                <label>Contraseña *</label>
+              <div>
+                <label className="field-label" htmlFor="usuario-contrasena">Contraseña *</label>
                 <input
+                  id="usuario-contrasena"
                   type="password" name="contrasena"
+                  className="field-input"
+                  autoComplete="new-password"
                   value={formData.contrasena ?? ''}
                   onChange={handleChange}
                   minLength={6}
                   required
-                  style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #D1D5DB', backgroundColor: '#F9FAFB', color: 'var(--text-primary)' }}
                 />
               </div>
             )}
 
             {error && (
-              <div className="error-message" style={{ color: 'var(--color-danger)', marginTop: '0.5rem' }}>
+              <div className="error-message" role="alert" style={{ color: 'var(--color-danger)' }}>
                 {error}
               </div>
             )}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem', flexShrink: 0 }}>
+          <div className="app-modal-footer">
             <button type="button" onClick={handleClose} className="btn btn-secondary" disabled={loading}>
               Cancelar
             </button>

@@ -9,6 +9,9 @@ import type { Pedido } from '../../pages/orders';
 import type { Cliente } from '../../pages/clients';
 import type { DisponibilidadProducto } from '../../pages/products';
 import { diaLocal } from '../../utils/fechas';
+import { formatoMoneda } from '../../utils/formato';
+import { X } from 'lucide-react';
+import './OrderModal.css';
 
 // Definición de las propiedades que acepta el modal
 interface OrderModalProps {
@@ -271,84 +274,52 @@ const OrderModal: React.FC<OrderModalProps> = ({ isOpen, onClose, onOrderAdded, 
 
   if (!isOpen) return null;
 
+  // Al editar, el cliente del pedido puede estar dado de baja: la lista solo trae activos
+  // y el select quedaba en "Seleccionar cliente", obligando a cambiarlo para poder guardar.
+  const clienteDelPedido = order?.cliente;
+  const opcionesClientes = clienteDelPedido?.idCliente != null
+    && !clientes.some(c => c.idCliente === clienteDelPedido.idCliente)
+    ? [...clientes, { ...clienteDelPedido, nombre: `${clienteDelPedido.nombre ?? 'Cliente'} (dado de baja)` }]
+    : clientes;
+
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex', justifyContent: 'center', alignItems: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        backgroundColor: '#FFFFFF', padding: '2rem', borderRadius: '12px',
-        width: '90%', maxWidth: '600px', maxHeight: '90vh',
-        border: '1px solid #E5E7EB',
-        boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
-        overflow: 'hidden', display: 'flex', flexDirection: 'column'
-      }}>
-        <h2 style={{ marginBottom: '1.5rem', color: 'var(--accent)', flexShrink: 0 }}>
-          {order ? 'Editar Pedido' : 'Nuevo Pedido'}
-        </h2>
+    <div className="app-modal-overlay">
+      <div className="app-modal app-modal-wide" role="dialog" aria-modal="true" aria-labelledby="order-modal-title">
+        <div className="app-modal-header">
+          <h2 id="order-modal-title" className="app-modal-title">
+            {order ? 'Editar Pedido' : 'Nuevo Pedido'}
+          </h2>
+        </div>
 
         {/* Mensaje de Error con opción de reintentar */}
         {error && (
-          <div style={{
-            padding: '1rem',
-            backgroundColor: '#fef2f2',
-            border: '1px solid #fecaca',
-            borderRadius: '8px',
-            marginBottom: '1rem',
-            flexShrink: 0
-          }}>
-            <div style={{ color: '#dc2626', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-              Error al cargar datos
-            </div>
-            <div style={{ color: '#7f1d1d', marginBottom: '1rem', fontSize: '0.9rem' }}>
-              {error}
-            </div>
-            <button
-              type="button"
-              onClick={retryLoadData}
-              disabled={loading}
-              style={{
-                padding: '0.5rem 1rem',
-                backgroundColor: '#dc2626',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.6 : 1
-              }}
-            >
+          <div className="order-modal-error" role="alert">
+            <strong>Error al cargar datos</strong>
+            <p>{error}</p>
+            <button type="button" className="btn btn-danger" onClick={retryLoadData} disabled={loading}>
               {loading ? 'Cargando...' : 'Reintentar'}
             </button>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1, overflow: 'hidden' }}>
-          <div style={{ flex: 1, overflowY: 'auto', paddingRight: '0.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <form onSubmit={handleSubmit} className="app-modal-form">
+          <div className="app-modal-body">
 
             {/* Selección de Cliente */}
             <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
-                Cliente *
-              </label>
+              <label className="field-label" htmlFor="pedido-cliente">Cliente *</label>
               {loadingClientes ? (
-                <div style={{ padding: '0.75rem', color: 'var(--text-secondary)' }}>
-                  Cargando clientes...
-                </div>
+                <div className="order-modal-cargando">Cargando clientes...</div>
               ) : (
                 <select
+                  id="pedido-cliente"
                   required
+                  className="field-input"
                   value={formData.idCliente}
                   onChange={(e) => setFormData({ ...formData, idCliente: e.target.value })}
-                  style={{
-                    width: '100%', padding: '0.75rem', borderRadius: '8px',
-                    border: '1px solid #D1D5DB', backgroundColor: '#F9FAFB', color: 'var(--text-primary)'
-                  }}
                 >
                   <option value="">Seleccionar cliente</option>
-                  {clientes.map((cliente) => (
+                  {opcionesClientes.map((cliente) => (
                     <option key={cliente.idCliente} value={String(cliente.idCliente || '')}>
                       {cliente.nombre}
                     </option>
@@ -359,175 +330,134 @@ const OrderModal: React.FC<OrderModalProps> = ({ isOpen, onClose, onOrderAdded, 
 
             {/* Selección de Fecha */}
             <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
-                Fecha Programada *
-              </label>
+              <label className="field-label" htmlFor="pedido-fecha">Fecha Programada *</label>
               <input
+                id="pedido-fecha"
                 type="date"
                 required
+                className="field-input"
                 value={formData.fechaProgramada}
                 onChange={(e) => handleFechaChange(e.target.value)}
-                style={{
-                  width: '100%', padding: '0.75rem', borderRadius: '8px',
-                  border: '1px solid #D1D5DB', backgroundColor: '#F9FAFB', color: 'var(--text-primary)'
-                }}
               />
             </div>
 
             {/* Checkbox Pagado */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0' }}>
+            <label className="field-check">
               <input
                 type="checkbox"
-                id="checkPagado"
                 checked={formData.pagado}
                 onChange={(e) => setFormData({ ...formData, pagado: e.target.checked })}
-                style={{ width: '20px', height: '20px', cursor: 'pointer' }}
               />
-              <label htmlFor="checkPagado" style={{ cursor: 'pointer', userSelect: 'none', color: 'var(--text-primary)', fontWeight: '500' }}>
-                Pedido Pagado
-              </label>
-            </div>
+              Pedido Pagado
+            </label>
 
             {/* Selección de Productos */}
             <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
-                Productos
-              </label>
+              <label className="field-label" htmlFor="pedido-agregar-producto">Productos</label>
 
               {loadingProductos ? (
-                <div style={{ padding: '0.75rem', color: 'var(--text-secondary)' }}>Cargando productos...</div>
+                <div className="order-modal-cargando">Cargando productos...</div>
               ) : (
-                <div style={{ marginBottom: '1rem' }}>
-                  <select
-                    onChange={(e) => {
-                      const producto = productos.find(p => p.idProducto === parseInt(e.target.value));
-                      if (producto) {
-                        addProduct(producto);
-                        e.target.value = ''; // Reset select
-                      }
-                    }}
-                    style={{
-                      width: '100%', padding: '0.75rem', borderRadius: '8px',
-                      border: '1px solid #D1D5DB', backgroundColor: '#F9FAFB', color: 'var(--text-primary)'
-                    }}
-                  >
-                    <option value="">Agregar producto...</option>
-                    {/* Filtramos productos ya seleccionados para no duplicar en la lista visual */}
-                    {productos.filter(p => !selectedProducts.find(sp => sp.producto.idProducto === p.idProducto))
-                      .map((producto) => (
-                        <option key={producto.idProducto} value={String(producto.idProducto || '')}>
-                          {producto.nombre} - ₡{producto.precio} (disp. {producto.disponible})
-                        </option>
-                      ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Lista de productos seleccionados (con cantidad y precio editable) */}
-              {selectedProducts.length > 0 && (
-                <div style={{
-                  border: '1px solid #E5E7EB', borderRadius: '8px', padding: '1rem',
-                  backgroundColor: '#F9FAFB', maxHeight: '300px', overflow: 'hidden',
-                  display: 'flex', flexDirection: 'column'
-                }}>
-                  <h4 style={{ margin: '0 0 1rem 0', color: 'var(--text-primary)', flexShrink: 0 }}>Productos Seleccionados:</h4>
-                  <div style={{ flex: 1, overflowY: 'auto', marginBottom: '1rem' }}>
-                    {selectedProducts.map((item, index) => {
-                      const excede = item.cantidad > item.producto.disponible;
-                      return (
-                        <div key={index} style={{
-                          display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto',
-                          gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem',
-                          padding: '0.5rem', backgroundColor: '#FFFFFF', borderRadius: '6px',
-                          border: `1px solid ${excede ? '#fcd34d' : '#E5E7EB'}`
-                        }}>
-                          <div>
-                            <span style={{ color: 'var(--text-primary)' }}>{item.producto.nombre}</span>
-                            <div style={{ fontSize: '0.75rem', color: excede ? '#b45309' : 'var(--text-secondary)' }}>
-                              {excede
-                                ? `Hay ${item.producto.disponible}: falta hornear ${item.cantidad - item.producto.disponible}`
-                                : `Disponible: ${item.producto.disponible}`}
-                            </div>
-                          </div>
-                          {/* Input Cantidad */}
-                          <input
-                            type="number"
-                            min="1"
-                            value={item.cantidad}
-                            onChange={(e) => updateProductQuantity(item.producto.idProducto, parseInt(e.target.value) || 1)}
-                            style={{
-                              padding: '0.25rem', borderRadius: '4px', border: '1px solid #D1D5DB',
-                              backgroundColor: '#FFFFFF', color: 'var(--text-primary)', width: '60px'
-                            }}
-                          />
-                          {/* Input Precio */}
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={item.precio}
-                            onChange={(e) => updateProductPrice(item.producto.idProducto, parseFloat(e.target.value) || 0)}
-                            style={{
-                              padding: '0.25rem', borderRadius: '4px', border: '1px solid #D1D5DB',
-                              backgroundColor: '#FFFFFF', color: 'var(--text-primary)', width: '80px'
-                            }}
-                          />
-                          {/* Botón Eliminar */}
-                          <button
-                            type="button"
-                            onClick={() => removeProduct(item.producto.idProducto)}
-                            style={{
-                              padding: '0.25rem 0.5rem', backgroundColor: 'var(--color-danger)',
-                              color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem'
-                            }}
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {/* Total Calculado */}
-                  <div style={{
-                    padding: '0.5rem', backgroundColor: 'var(--accent-bg)', borderRadius: '6px',
-                    textAlign: 'right', flexShrink: 0
-                  }}>
-                    <strong>Total: ₡{calculateTotal().toFixed(2)}</strong>
-                  </div>
-                </div>
+                <select
+                  id="pedido-agregar-producto"
+                  className="field-input"
+                  onChange={(e) => {
+                    const producto = productos.find(p => p.idProducto === parseInt(e.target.value));
+                    if (producto) {
+                      addProduct(producto);
+                      e.target.value = ''; // Reset select
+                    }
+                  }}
+                >
+                  <option value="">Agregar producto...</option>
+                  {/* Filtramos productos ya seleccionados para no duplicar en la lista visual */}
+                  {productos.filter(p => !selectedProducts.find(sp => sp.producto.idProducto === p.idProducto))
+                    .map((producto) => (
+                      <option key={producto.idProducto} value={String(producto.idProducto || '')}>
+                        {producto.nombre} - {formatoMoneda(producto.precio)} (disp. {producto.disponible})
+                      </option>
+                    ))}
+                </select>
               )}
             </div>
 
-          </div>
-
-          <div style={{
-            padding: '1rem',
-            backgroundColor: lineasQueExceden.length > 0 ? '#fffbeb' : '#F3F4F6',
-            borderRadius: '8px',
-            border: `1px solid ${lineasQueExceden.length > 0 ? '#fcd34d' : '#E5E7EB'}`,
-            flexShrink: 0
-          }}>
-            {lineasQueExceden.length > 0 ? (
-              <p style={{ margin: 0, color: '#92400e', fontSize: '0.9rem' }}>
-                <strong>Ojo:</strong> {lineasQueExceden.length === 1 ? 'un producto supera' : `${lineasQueExceden.length} productos superan`} lo
-                que hay disponible.{' '}
-                {esParaHoy
-                  ? 'Como el pedido es para hoy, cocina tendrá que hornear antes de poder alistarlo.'
-                  : 'Para una fecha futura es normal: se hornea ese día. El pedido se puede registrar igual.'}
-              </p>
-            ) : (
-              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                <strong>Nota:</strong> el stock se descuenta cuando cocina toma el pedido, no ahora.
-                Lo que se muestra como disponible ya descuenta lo comprometido en otros pedidos pendientes.
-              </p>
+            {/* Lista de productos seleccionados (con cantidad y precio editable) */}
+            {selectedProducts.length > 0 && (
+              <div className="order-lineas">
+                <h4>Productos seleccionados</h4>
+                {selectedProducts.map((item) => {
+                  const excede = item.cantidad > item.producto.disponible;
+                  const id = item.producto.idProducto;
+                  return (
+                    <div key={id} className={`order-linea${excede ? ' excede' : ''}`}>
+                      <div className="order-linea-producto">
+                        <span className="order-linea-nombre">{item.producto.nombre}</span>
+                        <span className="order-linea-disponible">
+                          {excede
+                            ? `Hay ${item.producto.disponible}: falta hornear ${item.cantidad - item.producto.disponible}`
+                            : `Disponible: ${item.producto.disponible}`}
+                        </span>
+                      </div>
+                      <label className="order-linea-campo">
+                        <span>Cant.</span>
+                        <input
+                          type="number"
+                          min="1"
+                          inputMode="numeric"
+                          value={item.cantidad}
+                          onChange={(e) => updateProductQuantity(id, parseInt(e.target.value) || 1)}
+                        />
+                      </label>
+                      <label className="order-linea-campo">
+                        <span>Precio</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          inputMode="decimal"
+                          value={item.precio}
+                          onChange={(e) => updateProductPrice(id, parseFloat(e.target.value) || 0)}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="order-linea-quitar"
+                        onClick={() => removeProduct(id)}
+                        aria-label={`Quitar ${item.producto.nombre}`}
+                        title="Quitar"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  );
+                })}
+                {/* Total Calculado */}
+                <div className="order-lineas-total">
+                  Total: <strong>{formatoMoneda(calculateTotal())}</strong>
+                </div>
+              </div>
             )}
+
+            <div className={`order-modal-nota${lineasQueExceden.length > 0 ? ' aviso' : ''}`}>
+              {lineasQueExceden.length > 0 ? (
+                <p>
+                  <strong>Ojo:</strong> {lineasQueExceden.length === 1 ? 'un producto supera' : `${lineasQueExceden.length} productos superan`} lo
+                  que hay disponible.{' '}
+                  {esParaHoy
+                    ? 'Como el pedido es para hoy, cocina tendrá que hornear antes de poder alistarlo.'
+                    : 'Para una fecha futura es normal: se hornea ese día. El pedido se puede registrar igual.'}
+                </p>
+              ) : (
+                <p>
+                  <strong>Nota:</strong> el stock se descuenta cuando cocina toma el pedido, no ahora.
+                  Lo que se muestra como disponible ya descuenta lo comprometido en otros pedidos pendientes.
+                </p>
+              )}
+            </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem', flexShrink: 0 }}>
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn btn-secondary"
-            >
+          <div className="app-modal-footer">
+            <button type="button" onClick={onClose} className="btn btn-secondary">
               Cancelar
             </button>
             <button

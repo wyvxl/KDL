@@ -118,171 +118,135 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onProductA
   if (!isOpen) return null;
 
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        backgroundColor: '#FFFFFF', padding: '2rem', borderRadius: '12px',
-        width: '90%', maxWidth: '500px',
-        maxHeight: '80vh', // Altura máxima para el modal
-        display: 'flex', flexDirection: 'column', // Layout de columna
-        border: '1px solid var(--border)',
-        boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)'
-      }}>
-        <h2 style={{ marginBottom: '1.5rem', color: 'var(--accent)', flexShrink: 0 }}>
-          {product ? 'Editar Producto' : 'Nuevo Producto'}
-        </h2>
+    <div className="app-modal-overlay">
+      <div className="app-modal" role="dialog" aria-modal="true" aria-labelledby="product-modal-title">
+        <div className="app-modal-header">
+          <h2 id="product-modal-title" className="app-modal-title">
+            {product ? 'Editar Producto' : 'Nuevo Producto'}
+          </h2>
+        </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: '1rem', overflowY: 'auto', paddingRight: '1rem' }}>
-          {/* Nombre */}
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
-              Nombre *
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.nombre}
-              onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-              style={{
-                width: '100%', padding: '0.75rem', borderRadius: '8px',
-                border: '1px solid #D1D5DB', backgroundColor: '#F9FAFB', color: 'var(--text-primary)'
-              }}
-            />
-          </div>
-
-          {/* Descripción */}
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
-              Descripción
-            </label>
-            <textarea
-              value={formData.descripcion}
-              onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-              style={{
-                width: '100%', padding: '0.75rem', borderRadius: '8px',
-                border: '1px solid #D1D5DB', backgroundColor: '#F9FAFB', color: 'var(--text-primary)',
-                minHeight: '80px', resize: 'vertical'
-              }}
-            />
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            {/* Precio */}
+        <form onSubmit={handleSubmit} className="app-modal-form">
+          <div className="app-modal-body">
+            {/* Nombre */}
             <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
-                Precio *
-              </label>
+              <label className="field-label" htmlFor="producto-nombre">Nombre *</label>
               <input
-                type="number"
+                id="producto-nombre"
+                type="text"
                 required
-                step="0.01"
-                value={formData.precio}
-                onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
-                style={{
-                  width: '100%', padding: '0.75rem', borderRadius: '8px',
-                  border: '1px solid #D1D5DB', backgroundColor: '#F9FAFB', color: 'var(--text-primary)'
-                }}
+                className="field-input"
+                value={formData.nombre}
+                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
               />
             </div>
 
-            {/* Unidad Medida */}
+            {/* Descripción */}
             <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
-                Unidad de Medida *
-              </label>
-              <select
-                required
-                value={formData.unidadMedida}
-                onChange={(e) => setFormData({ ...formData, unidadMedida: e.target.value })}
-                style={{
-                  width: '100%', padding: '0.75rem', borderRadius: '8px',
-                  border: '1px solid #D1D5DB', backgroundColor: '#F9FAFB', color: 'var(--text-primary)'
-                }}
-              >
-                <option value="">Seleccionar unidad</option>
-                <option value="unidad">Unidad</option>
-                <option value="kg">Kilogramo</option>
-                <option value="g">Gramo</option>
-                <option value="lb">Libra</option>
-                <option value="litro">Litro</option>
-                <option value="ml">Mililitro</option>
-                <option value="metro">Metro</option>
-                <option value="cm">Centímetro</option>
-                <option value="caja">Caja</option>
-                <option value="paquete">Paquete</option>
-                <option value="docena">Docena</option>
-                <option value="par">Par</option>
-              </select>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            {/* Stock Actual */}
-            <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
-                Stock Actual *
-              </label>
-              <input
-                type="number"
-                required
-                value={formData.stockActual}
-                onChange={(e) => setFormData({ ...formData, stockActual: e.target.value })}
-                style={{
-                  width: '100%', padding: '0.75rem', borderRadius: '8px',
-                  border: '1px solid #D1D5DB', backgroundColor: '#F9FAFB', color: 'var(--text-primary)'
-                }}
+              <label className="field-label" htmlFor="producto-descripcion">Descripción</label>
+              <textarea
+                id="producto-descripcion"
+                className="field-input"
+                value={formData.descripcion}
+                onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                style={{ minHeight: '80px', resize: 'vertical' }}
               />
             </div>
 
-            {/* Stock Mínimo */}
-            <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
-                Stock Mínimo *
-              </label>
-              <input
-                type="number"
-                required
-                value={formData.stockMinimo}
-                onChange={(e) => setFormData({ ...formData, stockMinimo: e.target.value })}
-                style={{
-                  width: '100%', padding: '0.75rem', borderRadius: '8px',
-                  border: '1px solid #D1D5DB', backgroundColor: '#F9FAFB', color: 'var(--text-primary)'
-                }}
-              />
-            </div>
-          </div>
+            <div className="field-row">
+              {/* Precio */}
+              <div>
+                <label className="field-label" htmlFor="producto-precio">Precio *</label>
+                <input
+                  id="producto-precio"
+                  type="number"
+                  required
+                  min="0"
+                  step="0.01"
+                  inputMode="decimal"
+                  className="field-input"
+                  value={formData.precio}
+                  onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
+                />
+              </div>
 
-          {/* Checkbox Activo */}
-          <div className="form-group" style={{ marginTop: '1rem' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', width: 'fit-content' }}>
+              {/* Unidad Medida */}
+              <div>
+                <label className="field-label" htmlFor="producto-unidad">Unidad de Medida *</label>
+                <select
+                  id="producto-unidad"
+                  required
+                  className="field-input"
+                  value={formData.unidadMedida}
+                  onChange={(e) => setFormData({ ...formData, unidadMedida: e.target.value })}
+                >
+                  <option value="">Seleccionar unidad</option>
+                  <option value="unidad">Unidad</option>
+                  <option value="kg">Kilogramo</option>
+                  <option value="g">Gramo</option>
+                  <option value="lb">Libra</option>
+                  <option value="litro">Litro</option>
+                  <option value="ml">Mililitro</option>
+                  <option value="metro">Metro</option>
+                  <option value="cm">Centímetro</option>
+                  <option value="caja">Caja</option>
+                  <option value="paquete">Paquete</option>
+                  <option value="docena">Docena</option>
+                  <option value="par">Par</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="field-row">
+              {/* Stock Actual */}
+              <div>
+                <label className="field-label" htmlFor="producto-stock">Stock Actual *</label>
+                <input
+                  id="producto-stock"
+                  type="number"
+                  required
+                  min="0"
+                  inputMode="numeric"
+                  className="field-input"
+                  value={formData.stockActual}
+                  onChange={(e) => setFormData({ ...formData, stockActual: e.target.value })}
+                />
+              </div>
+
+              {/* Stock Mínimo */}
+              <div>
+                <label className="field-label" htmlFor="producto-stock-minimo">Stock Mínimo *</label>
+                <input
+                  id="producto-stock-minimo"
+                  type="number"
+                  required
+                  min="0"
+                  inputMode="numeric"
+                  className="field-input"
+                  value={formData.stockMinimo}
+                  onChange={(e) => setFormData({ ...formData, stockMinimo: e.target.value })}
+                />
+              </div>
+            </div>
+
+            {/* Checkbox Activo */}
+            <label className="field-check">
               <input
                 type="checkbox"
                 name="activo"
                 checked={formData.activo === 'S'}
                 onChange={(e) => setFormData({ ...formData, activo: e.target.checked ? 'S' : 'N' })}
-                style={{ transform: 'scale(1.2)', margin: 0, cursor: 'pointer' }}
               />
-              <span style={{ fontSize: '1rem', color: 'var(--text-secondary)' }}>Producto Activo</span>
+              Producto Activo
             </label>
           </div>
 
-          {/* Botones */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem', flexShrink: 0 }}>
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn btn-secondary"
-            >
+          {/* Botones: fuera del área que se desplaza, siempre visibles */}
+          <div className="app-modal-footer">
+            <button type="button" onClick={onClose} className="btn btn-secondary">
               Cancelar
             </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn btn-primary"
-            >
+            <button type="submit" disabled={loading} className="btn btn-primary">
               {loading ? 'Guardando...' : 'Guardar'}
             </button>
           </div>

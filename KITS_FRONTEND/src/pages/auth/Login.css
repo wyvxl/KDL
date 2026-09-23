@@ -2,8 +2,9 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
-    width: 100vw;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 1rem;
     background-color: var(--color-bg);
 }
 
@@ -31,19 +32,19 @@
     gap: 1.5rem;
 }
 
-.form-group {
+.login-page .form-group {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
 }
 
-.form-label {
+.login-page .form-label {
     font-size: 0.875rem;
     font-weight: 500;
     color: var(--color-text);
 }
 
-.form-input {
+.login-page .form-input {
     width: 100%;
     padding: 0.75rem;
     border-radius: var(--border-radius-sm);
@@ -56,7 +57,7 @@
     transition: var(--transition);
 }
 
-.form-input:focus {
+.login-page .form-input:focus {
     outline: none;
     border-color: var(--color-primary) !important;
     box-shadow: 0 0 0 3px var(--color-primary-soft);
@@ -76,4 +77,10 @@
 .submit-button {
     margin-top: 0.5rem;
     width: 100%;
+}
+
+@media (max-width: 480px) {
+    .login-container {
+        padding: 1.75rem 1.25rem;
+    }
 }

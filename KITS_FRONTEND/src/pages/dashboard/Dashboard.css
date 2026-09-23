@@ -313,6 +313,11 @@
     gap: 15px;
 }
 
+/* Si queda un botón suelto en la última fila, ocupa todo el ancho en vez de dejar un hueco */
+.quick-btn-grid > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+}
+
 .cmd-btn {
     display: flex;
     flex-direction: column;
@@ -391,22 +396,28 @@
     letter-spacing: 0.03em;
 }
 
-.status-pendiente {
+.status-indicator.status-pendiente {
     background-color: #FEF3C7;
     color: #D97706;
 }
 
-.status-entregado {
+.status-indicator.status-entregado {
     background-color: #D1FAE5;
     color: #059669;
 }
 
-.status-en_proceso {
+.status-indicator.status-en_proceso {
     background-color: #DBEAFE;
     color: #2563EB;
 }
 
-.status-cancelado {
+/* Antes no existía y el modal tomaba prestado el estilo de Pedidos cuando su CSS estaba cargado */
+.status-indicator.status-listo {
+    background-color: #DBEAFE;
+    color: #1D4ED8;
+}
+
+.status-indicator.status-cancelado {
     background-color: #FEE2E2;
     color: #DC2626;
 }
