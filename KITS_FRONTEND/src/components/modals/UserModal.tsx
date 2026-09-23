@@ -193,6 +193,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, usuario 
                 type="text" name="nombreUsuario"
                 className="field-input"
                 autoComplete="off"
+                maxLength={50}
                 value={formData.nombreUsuario ?? ''}
                 onChange={handleChange}
                 disabled={!!usuario}
@@ -205,6 +206,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, usuario 
               <input
                 id="usuario-nombre-completo"
                 type="text" name="nombreCompleto"
+                maxLength={150}
                 className="field-input"
                 value={formData.nombreCompleto ?? ''}
                 onChange={handleChange}
@@ -217,6 +219,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, usuario 
               <input
                 id="usuario-email"
                 type="email" name="email"
+                maxLength={100}
                 className="field-input"
                 value={formData.email ?? ''}
                 onChange={handleChange}
