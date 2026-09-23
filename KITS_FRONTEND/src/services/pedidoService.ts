@@ -1,4 +1,5 @@
 import api from './api';
+import { diaLocal } from '../utils/fechas';
 import type { Pedido, DetallePedido, DetallePedidoArray, ProduccionRequerida } from '../pages/orders';
 
 // Función para convertir campos de fecha de string a Date
@@ -25,10 +26,7 @@ const parsePedidoDates = (pedido: Pedido): Pedido => {
  */
 const aFechaISO = (fecha: string | Date): string => {
   if (fecha instanceof Date) {
-    // Componentes locales: toISOString() volvería a pasar por UTC.
-    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-    const dia = String(fecha.getDate()).padStart(2, '0');
-    return `${fecha.getFullYear()}-${mes}-${dia}`;
+    return diaLocal(fecha);
   }
   return fecha.slice(0, 10);
 };

@@ -54,12 +54,9 @@ Queda en `http://localhost:8080`. La conexión se configura en
 `src/main/resources/application.properties`; `JWT_SECRET` y `CORS_ALLOWED_ORIGIN` se pueden
 sobrescribir por variable de entorno.
 
-La aplicación **no arranca sin la base de datos**: la conexión se valida al construir los
-beans. Por el mismo motivo, para empaquetar sin una instancia disponible:
-
-```bash
-./gradlew build -x test
-```
+La aplicación **no arranca sin la base de datos**: `VerificacionBaseDatos` comprueba la
+conexión al iniciar. Se puede desactivar con `app.db.verificar-al-iniciar=false`, que es lo
+que hacen las pruebas; por eso `./gradlew build` (con pruebas) funciona sin Oracle.
 
 ### 3. Frontend
 
@@ -70,6 +67,15 @@ npm run dev
 ```
 
 Queda en `http://localhost:5173`. La URL del backend se puede cambiar con `VITE_API_URL`.
+
+Pruebas E2E (Playwright, con el backend simulado; no necesitan Spring Boot ni Oracle):
+
+```bash
+npx playwright install chromium   # solo la primera vez
+npm run test:e2e
+```
+
+Corren en escritorio y en tamaño de celular, con la zona horaria de Costa Rica.
 
 ### Usuarios de prueba
 
@@ -87,6 +93,13 @@ La autorización se resuelve por **nombre** de rol, no por id: los ids de `ROLES
 | `VENDEDOR` | crear, editar, cobrar, cancelar | todo | consulta | — |
 | `PANADERO` | consultar y avanzar estado | — | todo | — |
 | `REPARTIDOR` | consultar y avanzar estado | — | — | — |
+
+"Avanzar" es pasar a `EN_PROCESO`, `LISTO` o `ENTREGADO`; cancelar es solo del vendedor (y
+del admin). Esa parte la decide `security/PermisosPedido.java`. Los pedidos que no crea el
+admin nacen siempre `PENDIENTE`.
+
+Si a un usuario lo desactivan o le cambian el rol, su token deja de valer en la siguiente
+petición: el filtro JWT compara el rol del token con el que tiene en ese momento en la BD.
 
 Las reglas están en `security/SecurityConfig.java`. Los permisos que decide qué ve el
 usuario en pantalla los calcula `LUsuario.obtenerPermisosPorRol`; ambas listas se mantienen
@@ -113,6 +126,13 @@ Invariante: `PEDIDOS.stock_aplicado = 'S'` ⟺ estado en (`EN_PROCESO`, `LISTO`,
 
 Consecuencias prácticas:
 
+- **Solo se permiten estas transiciones** (lo valida `sp_actualizar_estado_pedido`):
+  `PENDIENTE → EN_PROCESO`, `EN_PROCESO → LISTO`, `LISTO → ENTREGADO`, y cancelar desde
+  cualquiera de los tres primeros. `ENTREGADO` y `CANCELADO` son finales: antes se podía
+  volver de `ENTREGADO` a `CANCELADO` y el pan ya entregado regresaba al inventario.
+- **Un pedido `ENTREGADO` no se puede eliminar**, por el mismo motivo.
+- Quién movió el pedido por última vez queda en `id_usuario_ultimo_cambio`; el
+  responsable sigue siendo quien lo tomó.
 - **Un pedido solo se puede editar mientras esté `PENDIENTE`.** Después sus productos ya
   salieron del inventario y cambiar las líneas lo descuadraría.
 - **Al tomar el pedido se muestra la disponibilidad**, no se bloquea:

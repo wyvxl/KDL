@@ -278,6 +278,8 @@ const Users: React.FC = () => {
                         <div className="results-info text-sm">
                             Mostrando {filteredUsuarios.length} de {usuarios.length} usuarios
                         </div>
+                        {/* En pantallas angostas la tabla se desplaza sola en vez de cortarse. */}
+                        <div className="table-scroll">
                         <table className="users-table text-sm">
                             <thead>
                                 <tr>
@@ -345,6 +347,7 @@ const Users: React.FC = () => {
                                 ))}
                             </tbody>
                         </table>
+                        </div>
                     </>
                 )}
             </div>

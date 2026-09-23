@@ -21,6 +21,7 @@ import { pedidoService } from '../../services/pedidoService';
 import { productoService } from '../../services/productoService';
 import { authService } from '../../services/authService';
 import { PERMISOS, tienePermiso } from '../../utils/permisos';
+import { aDiaLocal } from '../../utils/fechas';
 import { mensajeDeError } from '../../utils/errorHandler';
 import type { Pedido, DetallePedido, ProduccionRequerida } from '../orders';
 import type { Producto } from '../products';
@@ -146,21 +147,6 @@ const Dashboard: React.FC = () => {
     const puedeGestionar = tienePermiso(PERMISOS.GESTIONAR_PEDIDOS);
     const puedeAvanzar = tienePermiso(PERMISOS.AVANZAR_PEDIDOS);
 
-    /**
-     * Convierte una fecha a formato 'YYYY-MM-DD' para comparaciones consistentes.
-     * Soluciona el problema de zona horaria al interpretar fechas 'YYYY-MM-DD' como UTC.
-     * @param date La fecha a normalizar.
-     * @returns La fecha en formato 'YYYY-MM-DD' o un string vacío si no es válida.
-     */
-    const toYYYYMMDD = (date: Date | string | undefined | null): string => {
-        if (!date) return '';
-        // Reemplazar guiones con slashes para que JS lo interprete como fecha local, no UTC.
-        const d = new Date(String(date).replace(/-/g, '/'));
-        if (isNaN(d.getTime())) return '';
-        return d.toISOString().split('T')[0];
-    };
-
-
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -173,7 +159,7 @@ const Dashboard: React.FC = () => {
 
                 const [pedidos, productos] = await Promise.all(promises);
 
-                const todayStr = toYYYYMMDD(new Date());
+                const todayStr = aDiaLocal(new Date());
 
                 let pedidosHoyList: Pedido[] = [];
                 let atrasadosList: Pedido[] = [];
@@ -183,12 +169,12 @@ const Dashboard: React.FC = () => {
 
                 if (pedidos) {
                     pedidosHoyList = (pedidos as Pedido[]).filter(p => {
-                        const pDateStr = toYYYYMMDD(p.fechaProgramada);
+                        const pDateStr = aDiaLocal(p.fechaProgramada);
                         return pDateStr === todayStr && estaActivo(p);
                     });
 
                     atrasadosList = (pedidos as Pedido[]).filter(p => {
-                        const pDateStr = toYYYYMMDD(p.fechaProgramada);
+                        const pDateStr = aDiaLocal(p.fechaProgramada);
                         return pDateStr && pDateStr < todayStr && estaActivo(p);
                     });
 
@@ -196,7 +182,7 @@ const Dashboard: React.FC = () => {
 
                     entregadosList = (pedidos as Pedido[]).filter(p => {
                         if (p.estado !== 'ENTREGADO') return false;
-                        const pDateStr = toYYYYMMDD(p.fechaEntrega) || toYYYYMMDD(p.fechaProgramada);
+                        const pDateStr = aDiaLocal(p.fechaEntrega) || aDiaLocal(p.fechaProgramada);
                         return pDateStr === todayStr;
                     });
                 }

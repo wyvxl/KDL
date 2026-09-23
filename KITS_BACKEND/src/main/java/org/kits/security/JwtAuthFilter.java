@@ -14,6 +14,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.IntFunction;
 
 /**
  * Filtro que extrae el token JWT del encabezado Authorization (Bearer),
@@ -26,9 +27,17 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtUtil jwtUtil;
+    private final IntFunction<String> rolVigente;
 
-    public JwtAuthFilter(JwtUtil jwtUtil) {
+    /**
+     * @param rolVigente devuelve el nombre del rol que el usuario tiene <em>ahora</em> en la
+     *                   BD, o {@code null} si ya no existe o está desactivado. Se consulta en
+     *                   cada petición porque el token vive 24 h: sin esto, desactivar a alguien
+     *                   o cambiarle el rol no tenía efecto hasta que el token expiraba.
+     */
+    public JwtAuthFilter(JwtUtil jwtUtil, IntFunction<String> rolVigente) {
         this.jwtUtil = jwtUtil;
+        this.rolVigente = rolVigente;
     }
 
     @Override
@@ -45,6 +54,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 if (authority == null || !(idUsuario instanceof Number id)) {
                     // Token incompleto (p. ej. emitido por una versión anterior). Se deja
                     // sin autenticar para que devuelva 401 y el frontend cierre sesión.
+                    SecurityContextHolder.clearContext();
+                } else if (!authority.equals(rolAAuthority(rolVigente.apply(id.intValue())))) {
+                    // Usuario desactivado o con otro rol desde que se emitió el token:
+                    // 401 para que vuelva a iniciar sesión y reciba sus permisos actuales.
                     SecurityContextHolder.clearContext();
                 } else {
                     // El principal lleva el id además del nombre: los controladores lo usan
