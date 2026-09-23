@@ -109,113 +109,82 @@ const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onClientAdde
   if (!isOpen) return null;
 
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        backgroundColor: '#FFFFFF', padding: '2rem', borderRadius: '12px',
-        width: '90%', maxWidth: '500px',
-        border: '1px solid var(--border)',
-        boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)'
-      }}>
-        <h2 style={{ marginBottom: '1.5rem', color: 'var(--accent)' }}>
-          {client ? 'Editar Cliente' : 'Nuevo Cliente'}
-        </h2>
+    <div className="app-modal-overlay">
+      <div className="app-modal" role="dialog" aria-modal="true" aria-labelledby="client-modal-title">
+        <div className="app-modal-header">
+          <h2 id="client-modal-title" className="app-modal-title">
+            {client ? 'Editar Cliente' : 'Nuevo Cliente'}
+          </h2>
+        </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
-              Nombre *
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.nombre}
-              onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-              style={{
-                width: '100%', padding: '0.75rem', borderRadius: '8px',
-                border: '1px solid #D1D5DB', backgroundColor: '#F9FAFB', color: 'var(--text-primary)'
-              }}
-            />
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+        <form onSubmit={handleSubmit} className="app-modal-form">
+          <div className="app-modal-body">
             <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
-                Teléfono
-              </label>
+              <label className="field-label" htmlFor="cliente-nombre">Nombre *</label>
               <input
-                type="tel"
-                value={formData.telefono}
-                onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                style={{
-                  width: '100%', padding: '0.75rem', borderRadius: '8px',
-                  border: '1px solid #D1D5DB', backgroundColor: '#F9FAFB', color: 'var(--text-primary)'
-                }}
+                id="cliente-nombre"
+                type="text"
+                required
+                className="field-input"
+                value={formData.nombre}
+                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+              />
+            </div>
+
+            <div className="field-row">
+              <div>
+                <label className="field-label" htmlFor="cliente-telefono">Teléfono</label>
+                <input
+                  id="cliente-telefono"
+                  type="tel"
+                  autoComplete="tel"
+                  className="field-input"
+                  value={formData.telefono}
+                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="field-label" htmlFor="cliente-email">Email</label>
+                <input
+                  id="cliente-email"
+                  type="email"
+                  autoComplete="email"
+                  className="field-input"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="field-label" htmlFor="cliente-direccion">Dirección</label>
+              <input
+                id="cliente-direccion"
+                type="text"
+                className="field-input"
+                value={formData.direccion}
+                onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
-                Email
-              </label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                style={{
-                  width: '100%', padding: '0.75rem', borderRadius: '8px',
-                  border: '1px solid #D1D5DB', backgroundColor: '#F9FAFB', color: 'var(--text-primary)'
-                }}
+              <label className="field-label" htmlFor="cliente-notas">Notas</label>
+              <textarea
+                id="cliente-notas"
+                className="field-input"
+                value={formData.notas}
+                onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
+                style={{ minHeight: '80px', resize: 'vertical' }}
               />
             </div>
           </div>
 
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
-              Dirección
-            </label>
-            <input
-              type="text"
-              value={formData.direccion}
-              onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
-              style={{
-                width: '100%', padding: '0.75rem', borderRadius: '8px',
-                border: '1px solid #D1D5DB', backgroundColor: '#F9FAFB', color: 'var(--text-primary)'
-              }}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
-              Notas
-            </label>
-            <textarea
-              value={formData.notas}
-              onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
-              style={{
-                width: '100%', padding: '0.75rem', borderRadius: '8px',
-                border: '1px solid #D1D5DB', backgroundColor: '#F9FAFB', color: 'var(--text-primary)',
-                minHeight: '80px', resize: 'vertical'
-              }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem' }}>
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn btn-secondary"
-            >
+          <div className="app-modal-footer">
+            <button type="button" onClick={onClose} className="btn btn-secondary">
               Cancelar
             </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn btn-primary"
-            >
+            <button type="submit" disabled={loading} className="btn btn-primary">
               {loading ? 'Guardando...' : 'Guardar'}
             </button>
           </div>

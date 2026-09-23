@@ -1,0 +1,147 @@
+/* Modal de pedido: bloques propios (el contenedor usa .app-modal de index.css) */
+
+.order-modal-error {
+  padding: 1rem;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  color: #7f1d1d;
+  flex-shrink: 0;
+}
+
+.order-modal-error strong {
+  color: #dc2626;
+}
+
+.order-modal-error p {
+  margin: 0.5rem 0 1rem;
+  font-size: 0.9rem;
+}
+
+.order-modal-cargando {
+  padding: 0.75rem;
+  color: var(--color-text-light);
+}
+
+.order-lineas {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1rem;
+  background-color: #F9FAFB;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.order-lineas h4 {
+  margin: 0 0 0.25rem;
+  color: var(--color-text);
+}
+
+.order-linea {
+  display: grid;
+  grid-template-columns: 1fr 72px 104px auto;
+  gap: 0.5rem;
+  align-items: end;
+  padding: 0.6rem 0.75rem;
+  background-color: var(--color-bg-card);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.order-linea.excede {
+  border-color: #fcd34d;
+}
+
+.order-linea-producto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  align-self: center;
+}
+
+.order-linea-nombre {
+  color: var(--color-text);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.order-linea-disponible {
+  font-size: 0.75rem;
+  color: var(--color-text-light);
+}
+
+.order-linea.excede .order-linea-disponible {
+  color: #b45309;
+}
+
+.order-linea-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.7rem;
+  color: var(--color-text-light);
+}
+
+.order-linea-campo input {
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+}
+
+.order-linea-quitar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #fecaca;
+  background-color: #fef2f2;
+  color: var(--color-danger);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.order-linea-quitar:hover {
+  background-color: var(--color-danger);
+  color: white;
+}
+
+.order-lineas-total {
+  text-align: right;
+  padding-top: 0.5rem;
+  color: var(--color-text);
+}
+
+.order-modal-nota {
+  padding: 1rem;
+  background-color: #F3F4F6;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.order-modal-nota p {
+  margin: 0;
+  color: var(--color-text-light);
+  font-size: 0.9rem;
+}
+
+.order-modal-nota.aviso {
+  background-color: #fffbeb;
+  border-color: #fcd34d;
+}
+
+.order-modal-nota.aviso p {
+  color: #92400e;
+}
+
+/* Celular: el nombre del producto ocupa su propia fila y los campos van debajo */
+@media (max-width: 480px) {
+  .order-linea {
+    grid-template-columns: 1fr 1fr auto;
+  }
+
+  .order-linea-producto {
+    grid-column: 1 / -1;
+  }
+}
