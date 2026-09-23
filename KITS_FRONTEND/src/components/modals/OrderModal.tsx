@@ -8,6 +8,7 @@ import Toast from '../ui/Toast';
 import type { Pedido } from '../../pages/orders';
 import type { Cliente } from '../../pages/clients';
 import type { DisponibilidadProducto } from '../../pages/products';
+import { diaLocal } from '../../utils/fechas';
 
 // Definición de las propiedades que acepta el modal
 interface OrderModalProps {
@@ -25,12 +26,7 @@ interface LineaPedido {
 }
 
 /** Fecha de hoy como 'YYYY-MM-DD', en hora local (sin pasar por UTC). */
-const hoyISO = (): string => {
-  const hoy = new Date();
-  const mes = String(hoy.getMonth() + 1).padStart(2, '0');
-  const dia = String(hoy.getDate()).padStart(2, '0');
-  return `${hoy.getFullYear()}-${mes}-${dia}`;
-};
+const hoyISO = (): string => diaLocal(new Date());
 
 // Componente Modal para Crear/Editar Pedidos
 const OrderModal: React.FC<OrderModalProps> = ({ isOpen, onClose, onOrderAdded, order }) => {

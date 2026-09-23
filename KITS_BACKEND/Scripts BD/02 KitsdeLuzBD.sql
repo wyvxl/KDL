@@ -67,8 +67,12 @@ CREATE TABLE PEDIDOS (
     -- Invariante: 'S' <=> estado IN ('EN_PROCESO','LISTO','ENTREGADO').
     -- Hace idempotente la aplicación/reversión de stock (ver sp_sincronizar_stock_pedido).
     stock_aplicado CHAR(1) DEFAULT 'N' CHECK (stock_aplicado IN ('S', 'N')),
+    -- Quién hizo el último cambio de estado (cocina, reparto...). Va aparte de
+    -- id_usuario_responsable para no perder al vendedor que tomó el pedido.
+    id_usuario_ultimo_cambio NUMBER,
     CONSTRAINT fk_pedidos_clientes FOREIGN KEY (id_cliente) REFERENCES CLIENTES(id_cliente),
-    CONSTRAINT fk_pedidos_usuarios FOREIGN KEY (id_usuario_responsable) REFERENCES USUARIOS(id_usuario)
+    CONSTRAINT fk_pedidos_usuarios FOREIGN KEY (id_usuario_responsable) REFERENCES USUARIOS(id_usuario),
+    CONSTRAINT fk_pedidos_usuario_cambio FOREIGN KEY (id_usuario_ultimo_cambio) REFERENCES USUARIOS(id_usuario)
 );
 
 -- Tabla PEDIDO_PRODUCTO: Detalle de los artículos en cada pedido

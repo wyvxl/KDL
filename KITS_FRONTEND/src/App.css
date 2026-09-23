@@ -24,6 +24,37 @@ body {
   background-color: var(--color-bg);
 }
 
+/* Área de contenido del layout principal (debajo del navbar) */
+.main-area {
+  flex: 1;
+  overflow: auto;
+  padding: 2rem;
+  background-color: var(--bg-primary);
+}
+
+/* Tablas anchas: se desplazan dentro de su contenedor en vez de cortarse */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/*
+ * Los hijos de grid/flex tienen min-width: auto y no se encogen por debajo de su
+ * contenido: en celular empujaban las tarjetas fuera de la pantalla.
+ */
+.main-grid > *,
+.orders-list > *,
+.products-grid > *,
+.clients-grid > * {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .main-area {
+    padding: 1rem 0.75rem;
+  }
+}
+
 /* Pantalla de carga inicial */
 .loading-app {
   display: flex;

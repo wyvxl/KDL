@@ -9,21 +9,17 @@ import org.kits.entities.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.math.BigDecimal;
 import java.sql.Types;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
 
 /**
  * Se encarga de la comunicación con la base de datos y la transformación de datos.
  */
 @Component
 public class LPedido extends Operations {
-
-    private static final Logger LOGGER = Logger.getLogger(LPedido.class.getName());
 
     @Autowired
     public LPedido(ConnectionManager connectionManager) {
@@ -40,33 +36,32 @@ public class LPedido extends Operations {
 
         List<Map<String, Object>> result = executeQuery("PKG_PEDIDOS.sp_op_listar_pedidos", parameters);
         if (result != null) {
+            // Sin try/catch por fila: antes una fila que fallaba al mapearse se descartaba
+            // y el pedido desaparecía de la lista sin que nadie se enterara.
             for (Map<String, Object> row : result) {
-                try {
-                    Cliente cliente = new Cliente();
-                    cliente.setIdCliente(((BigDecimal) row.get("id_cliente")).intValue());
-                    cliente.setNombre((String) row.get("nombre_cliente"));
+                Cliente cliente = new Cliente();
+                cliente.setIdCliente(toInt(row.get("id_cliente")));
+                cliente.setNombre((String) row.get("nombre_cliente"));
 
-                    Usuario usuario = new Usuario();
-                    usuario.setIdUsuario(((BigDecimal) row.get("id_usuario_responsable")).intValue());
-                    usuario.setNombreCompleto((String) row.get("nombre_usuario"));
+                Usuario usuario = new Usuario();
+                usuario.setIdUsuario(toInt(row.get("id_usuario_responsable")));
+                usuario.setNombreCompleto((String) row.get("nombre_usuario"));
 
-                    Pedido p = new Pedido();
-                    p.setIdPedido(((BigDecimal) row.get("id_pedido")).intValue());
-                    p.setCliente(cliente);
-                    p.setUsuarioResponsable(usuario);
-                    p.setFechaPedido(toDate(row.get("fecha_pedido")));
-                    p.setFechaProgramada(toDate(row.get("fecha_programada")));
-                    p.setFechaEntrega(toDate(row.get("fecha_entrega")));
-                    p.setEstado((String) row.get("estado"));
+                Pedido p = new Pedido();
+                p.setIdPedido(toInt(row.get("id_pedido")));
+                p.setCliente(cliente);
+                p.setUsuarioResponsable(usuario);
+                p.setFechaPedido(toDate(row.get("fecha_pedido")));
+                p.setFechaProgramada(toDate(row.get("fecha_programada")));
+                p.setFechaEntrega(toDate(row.get("fecha_entrega")));
+                p.setEstado((String) row.get("estado"));
 
-                    Object pagadoObj = row.get("pagado");
-                    p.setPagado(pagadoObj != null && "S".equals(pagadoObj.toString()));
+                Object pagadoObj = row.get("pagado");
+                p.setPagado(pagadoObj != null && "S".equals(pagadoObj.toString()));
 
-                    p.setTotal(row.get("total") != null ? ((BigDecimal) row.get("total")).doubleValue() : 0.0);
-                    pedidos.add(p);
-                } catch (Exception e) {
-                    LOGGER.severe("Error procesando fila de pedido: " + e.getMessage());
-                }
+                Double total = toDouble(row.get("total"));
+                p.setTotal(total != null ? total : 0.0);
+                pedidos.add(p);
             }
         }
         return pedidos;
@@ -88,14 +83,14 @@ public class LPedido extends Operations {
         if (result != null) {
             for (Map<String, Object> row : result) {
                 Producto producto = new Producto();
-                producto.setIdProducto(((BigDecimal) row.get("id_producto")).intValue());
+                producto.setIdProducto(toInt(row.get("id_producto")));
                 producto.setNombre((String) row.get("nombre_producto"));
 
                 DetallePedido d = new DetallePedido();
-                d.setIdPedido(((BigDecimal) row.get("id_pedido")).intValue());
+                d.setIdPedido(toInt(row.get("id_pedido")));
                 d.setProducto(producto);
-                d.setCantidad(((BigDecimal) row.get("cantidad")).intValue());
-                d.setPrecioUnitario(((BigDecimal) row.get("precio_unitario")).doubleValue());
+                d.setCantidad(toInt(row.get("cantidad")));
+                d.setPrecioUnitario(toDouble(row.get("precio_unitario")));
                 detalles.add(d);
             }
         }
